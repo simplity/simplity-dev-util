@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import {
-  AppMetaData,
+  AppMeta,
   ChildForm,
   ChildRecord,
   CompositeRecord,
@@ -23,7 +23,8 @@ import {
   ValueList,
   ValueType,
 } from 'simplity-types';
-import { pageFactory } from './pageFactory';
+import { generatePage } from './generatePage';
+import { alterPage } from './alterPage';
 
 /**
  * attributes for application.json
@@ -62,17 +63,12 @@ type AllRecords = {
  * The folder is emptied before writing out generated JSONs.
  * @param tsFolder where typescript files are written out.
  * The folder is emptied before writing out generated ts files.
- * @param pagesFolder where pages are to be generated.
- * This is optional, and meant only for the developer, and not for the app.
- * Should be outside of src folder to ensure that these are not part of the package.
- * undefined to skip this, as it is anyways not used by the app.
  *
  */
 export function processMeta(
-  appMetaData: AppMetaData,
+  meta: AppMeta,
   jsonFolder: string,
-  tsFolder: string,
-  pagesFolder?: string
+  tsFolder: string
 ) {
   rmSync(jsonFolder, { recursive: true, force: true });
   mkdirSync(jsonFolder);
@@ -81,12 +77,11 @@ export function processMeta(
   mkdirSync(tsFolder);
 
   let fileName = jsonFolder + 'application.json';
-  const appDetails = appMetaData.appDetails;
   const appJson: AppJson = {
-    appName: appDetails.name,
-    maxLengthForTextField: appDetails.maxLengthForTextField,
-    tenantFieldName: appDetails.tenantFieldName,
-    tenantNameInDb: appDetails.tenantNameInDb,
+    appName: meta.name,
+    maxLengthForTextField: meta.maxLengthForTextField,
+    tenantFieldName: meta.tenantFieldName,
+    tenantNameInDb: meta.tenantNameInDb,
   };
   /**
    * 1. application.json
@@ -101,7 +96,7 @@ export function processMeta(
   writeFileSync(
     fileName,
     JSON.stringify({
-      valueLists: { ...systemResources.valueLists, ...appMetaData.valueLists },
+      valueLists: { ...systemResources.valueLists, ...meta.valueLists },
     })
   );
   done(fileName);
@@ -113,7 +108,7 @@ export function processMeta(
   writeFileSync(
     fileName,
     JSON.stringify({
-      messages: { ...systemResources.messages, ...appMetaData.messages },
+      messages: { ...systemResources.messages, ...meta.messages },
     })
   );
   done(fileName);
@@ -127,7 +122,7 @@ export function processMeta(
     JSON.stringify({
       valueSchemas: {
         ...systemResources.valueSchemas,
-        ...appMetaData.valueSchemas,
+        ...meta.valueSchemas,
       },
     })
   );
@@ -138,7 +133,7 @@ export function processMeta(
    * This needs some serious re-factoring
    */
   const comps: AllRecords = {
-    all: { ...systemResources.records, ...appMetaData.records },
+    all: { ...systemResources.records, ...meta.records },
     forms: {},
     records: {},
     wrongOnes: {},
@@ -158,7 +153,7 @@ export function processMeta(
   /**
    * 7. sql.json
    */
-  writeJsons(jsonFolder, 'sql', appMetaData.sqls);
+  writeJsons(jsonFolder, 'sql', meta.sqls || {});
 
   /**
    * done with server side. Let's now generate .ts files
@@ -166,7 +161,7 @@ export function processMeta(
   /**
    * 8. listSources.ts
    */
-  generateListSources(appMetaData.valueLists, tsFolder);
+  generateListSources(meta.valueLists, tsFolder);
 
   /**
    * 9. form.ts and /form/*.ts
@@ -179,18 +174,9 @@ export function processMeta(
   /**
    * 10. pages.ts from /template/*.ts and alter /pageAlterations
    */
-  if (pagesFolder) {
-    const pages: StringMap<Page> = { ...(appMetaData.pages || {}) };
-    rmSync(pagesFolder, { recursive: true, force: true });
-    mkdirSync(pagesFolder);
-    generatePages(
-      appMetaData.templates || {},
-      appMetaData.pageAlterations || {},
-      forms,
-      pages
-    );
-    writeAll(pages, pagesFolder, 'Page', 'pages');
-  }
+  const pages: StringMap<Page> = { ...(meta.pages || {}) };
+  generatePages(meta.templates || {}, meta.pageAlterations || {}, forms, pages);
+  writeAll(pages, tsFolder, 'Page', 'pages');
 }
 
 function done(fileName: string): void {
@@ -561,7 +547,7 @@ function generatePages(
   for (const [name, template] of Object.entries(templates)) {
     const form = forms[template.formName];
     if (form) {
-      pageFactory.generatePage(template, form, pages);
+      generatePage(template, form, pages);
       console.info(`page template ${name} processed to generate page/s`);
     } else {
       console.error(
@@ -573,7 +559,7 @@ function generatePages(
   for (const [name, alts] of Object.entries(alterations)) {
     const page = pages[name];
     if (page) {
-      pageFactory.alterPage(page, alts);
+      alterPage(page, alts);
       console.info(`page ${name} altered`);
     } else {
       console.error(

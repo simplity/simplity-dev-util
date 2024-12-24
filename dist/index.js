@@ -14,7 +14,28 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.metaProcessor = void 0;
+const processMeta_1 = require("./lib/processMeta");
+/**
+ * utility to process all the meta data and generate various artifacts as per the design
+ */
+exports.metaProcessor = {
+    /**
+     * process the design components to generate derived components for the server as well as the client
+     * 1. JSOn files are created for the server side.
+     * 2. ts files for ListSources are generated for the client-side
+     * 3. ts files for Form are generated for the client-side
+     * 4. pages are generated, and altered if required, for all the templates.
+     * @param appDesign all the input for processing
+     * @param jsonFolder where the json files are to be written out.
+     * The folder is emptied before writing out generated JSONs.
+     * @param tsFolder where typescript files are written out.
+     * The folder is emptied before writing out generated ts files.
+     */
+    processMeta: processMeta_1.processMeta,
+};
+/**
+ * TODO: re-factor this to expose the right functionality for the app-user
+ */
 __exportStar(require("./lib/xlsxUtils"), exports);
-__exportStar(require("./lib/generator"), exports);
-__exportStar(require("./lib/validation"), exports);
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLGtEQUFnQztBQUNoQyxrREFBZ0M7QUFDaEMsbURBQWlDIn0=
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxtREFBZ0Q7QUFFaEQ7O0dBRUc7QUFDVSxRQUFBLGFBQWEsR0FBRztJQUMzQjs7Ozs7Ozs7Ozs7T0FXRztJQUNILFdBQVcsRUFBWCx5QkFBVztDQUNaLENBQUM7QUFFRjs7R0FFRztBQUNILGtEQUFnQyJ9

@@ -35,30 +35,45 @@ export function generatePage(
   pages: StringMap<Page>
 ): number {
   const templateName = template.name;
+  let nbr = 0;
   if (template.type === 'master') {
     //generate and add list, view and save pages
+
     let pageName = templateName + 'List';
-    pages[pageName] = new Gen(
-      toListPage(template as MasterPage),
-      form
-    ).generate();
-    console.info(`page ${pageName} generated.`);
+    if (pageExists(pageName, pages, templateName) === false) {
+      pages[pageName] = new Gen(
+        toListPage(template as MasterPage),
+        form
+      ).generate();
+      console.info(`page ${pageName} generated.`);
+      nbr++;
+    }
 
     pageName = templateName + 'View';
-    pages[pageName] = new Gen(
-      toViewPage(template as MasterPage),
-      form
-    ).generate();
-    console.info(`page ${pageName} generated.`);
+    if (pageExists(pageName, pages, templateName) === false) {
+      pages[pageName] = new Gen(
+        toViewPage(template as MasterPage),
+        form
+      ).generate();
+      console.info(`page ${pageName} generated.`);
+      nbr++;
+    }
 
     pageName = templateName + 'Save';
-    pages[pageName] = new Gen(
-      toSavePage(template as MasterPage),
-      form
-    ).generate();
-    console.info(`page ${pageName} generated.`);
+    if (pageExists(pageName, pages, templateName) === false) {
+      pages[pageName] = new Gen(
+        toSavePage(template as MasterPage),
+        form
+      ).generate();
+      console.info(`page ${pageName} generated.`);
+      nbr++;
+    }
 
-    return 3;
+    return nbr;
+  }
+
+  if (pageExists(templateName, pages)) {
+    return 0;
   }
 
   pages[templateName] = new Gen(template, form).generate();
@@ -66,6 +81,27 @@ export function generatePage(
   return 1;
 }
 
+function pageExists(
+  name: string,
+  pages: StringMap<Page>,
+  masterName?: string
+): boolean {
+  if (!pages[name]) {
+    return true;
+  }
+
+  let msg = `A page with name ${name} is defined in the pages folder.`;
+
+  if (masterName) {
+    msg += `\nA master template named ${masterName} is defined in the templates folder, that would generate a page with the same name`;
+  } else {
+    msg += `\nA template with the same name is also defined in the templates folder.`;
+  }
+
+  msg += `\nPage generated with the template is ignored, and the page you have defined in the pages folder is retained`;
+  console.error(msg);
+  return false;
+}
 /**
  * generator that can generate different types of pages from a template
  */
