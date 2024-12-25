@@ -547,8 +547,8 @@ function generatePages(
   for (const [name, template] of Object.entries(templates)) {
     const form = forms[template.formName];
     if (form) {
-      generatePage(template, form, pages);
-      console.info(`page template ${name} processed to generate page/s`);
+      const n = generatePage(template, form, pages);
+      console.info(`page template ${name} processed to generate ${n} page/s`);
     } else {
       console.error(
         `template ${template} requires form ${template.formName}, but that form is not found`

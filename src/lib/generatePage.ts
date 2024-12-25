@@ -6,7 +6,6 @@ import {
   NavigationAction,
   Button,
   FilterAction,
-  FormAction,
   Tabs,
   Tab,
   SaveAction,
@@ -87,7 +86,7 @@ function pageExists(
   masterName?: string
 ): boolean {
   if (!pages[name]) {
-    return true;
+    return false;
   }
 
   let msg = `A page with name ${name} is defined in the pages folder.`;
@@ -100,7 +99,7 @@ function pageExists(
 
   msg += `\nPage generated with the template is ignored, and the page you have defined in the pages folder is retained`;
   console.error(msg);
-  return false;
+  return true;
 }
 /**
  * generator that can generate different types of pages from a template
@@ -142,7 +141,7 @@ class Gen {
       for (const key of fields) {
         this.inputParams[key] = true;
         this.allParams[key] = '$' + key;
-        this.keyParams[key] = '$' + key;
+        this.keyParams[key] = true;
       }
     }
     const t = this.template.additionalInputParams;
@@ -221,7 +220,6 @@ class Gen {
           icon: tab.icon,
           name: tab.name,
           compType: 'panel',
-          useGridLayout: true,
           children: this.getChildArray(tab.fields, hiddenOnes),
         } as Tab);
       }
@@ -405,6 +403,7 @@ class Gen {
         name: 'save',
         type: 'form',
         formOperation: 'save',
+        formName: t.formName,
         onSuccess: 'close',
       } as SaveAction,
       cancel: {
@@ -458,7 +457,6 @@ class Gen {
 
           tabLabel: tab.label,
           icon: tab.icon,
-          useGridLayout: true,
           children: this.getChildArray(tab.fields, hiddenOnes, true),
         } as Tab);
       }
@@ -471,8 +469,6 @@ class Gen {
       dataPanel = {
         name: 'editPanel',
         compType: 'panel',
-
-        useGridLayout: true,
         children: this.getChildArray(this.form.fieldNames, hiddenOnes, true),
       } as Panel;
     }
@@ -508,6 +504,7 @@ class Gen {
       name: 'filter',
       type: 'form',
       formOperation: 'filter',
+      formName: t.formName,
       childName: 'itemsList',
       filterParams: t.filterParams,
     } as FilterAction;
@@ -588,13 +585,15 @@ class Gen {
       name: 'getData',
       type: 'form',
       formOperation: 'get',
-    } as FormAction;
+      formName: t.formName,
+    } as GetAction;
 
     this.actions.submitData = {
       name: 'submitData',
       type: 'form',
       formOperation: 'save',
-    } as FormAction;
+      formName: t.formName,
+    } as SaveAction;
 
     this.actions.cancel = {
       name: 'cancel',

@@ -165,7 +165,7 @@ function alterChildren(parent, alts, nbrTasks) {
         }
         /**
          * is this child a container?
-         * in which case we have to look for alterations of its chidren, recursively
+         * in which case we have to look for alterations of its children, recursively
          */
         if (child.children) {
             nbrTasks = alterChildren(child, alts, nbrTasks);
