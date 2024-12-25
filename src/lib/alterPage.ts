@@ -1,9 +1,9 @@
 import {
   Page,
-  BaseComponent,
   ContainerComponent,
   PageAlteration,
   StringMap,
+  PageComponent,
 } from 'simplity-types';
 
 /**
@@ -139,7 +139,7 @@ function alterChildren(
   nbrTasks: number
 ): number {
   const parentName = parent.name;
-  const comps: BaseComponent[] = [];
+  const comps: PageComponent[] = [];
   for (const child of parent.children) {
     if (nbrTasks < 1) {
       comps.push(child);
@@ -199,7 +199,7 @@ function alterChildren(
 
     /**
      * is this child a container?
-     * in which case we have to look for alterations of its chidren, recursively
+     * in which case we have to look for alterations of its children, recursively
      */
     if ((child as ContainerComponent).children) {
       nbrTasks = alterChildren(child as ContainerComponent, alts, nbrTasks);
