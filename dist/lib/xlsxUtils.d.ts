@@ -1,4 +1,4 @@
-import { AppMeta, StringMap } from 'simplity-types';
+import { AppDesign, StringMap } from 'simplity-types';
 import { WorkBook } from 'xlsx';
 export type Json = StringMap<unknown>;
 type JsonCell = string | number | boolean | bigint;
@@ -38,7 +38,7 @@ declare function xlsxToJson(xlsxFileName: string): Json;
  * @param meta
  * @param folderName root folder name to be used for writing the files
  */
-declare function writeXlsx(meta: AppMeta, folderName: string): void;
+declare function writeXlsx(meta: AppDesign, folderName: string): void;
 /**
  * create a json as per our convention
  * @param book workbook to be converted

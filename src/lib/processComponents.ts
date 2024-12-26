@@ -1,10 +1,10 @@
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import {
-  AppMeta,
   ChildForm,
   ChildRecord,
   CompositeRecord,
   DataField,
+  AppDesign,
   ExtendedRecord,
   Field,
   FieldRendering,
@@ -65,8 +65,8 @@ type AllRecords = {
  * The folder is emptied before writing out generated ts files.
  *
  */
-export function processMeta(
-  meta: AppMeta,
+export function processComponents(
+  appComps: AppDesign,
   jsonFolder: string,
   tsFolder: string
 ) {
@@ -78,10 +78,10 @@ export function processMeta(
 
   let fileName = jsonFolder + 'application.json';
   const appJson: AppJson = {
-    appName: meta.name,
-    maxLengthForTextField: meta.maxLengthForTextField,
-    tenantFieldName: meta.tenantFieldName,
-    tenantNameInDb: meta.tenantNameInDb,
+    appName: appComps.name,
+    maxLengthForTextField: appComps.maxLengthForTextField,
+    tenantFieldName: appComps.tenantFieldName,
+    tenantNameInDb: appComps.tenantNameInDb,
   };
   /**
    * 1. application.json
@@ -96,7 +96,7 @@ export function processMeta(
   writeFileSync(
     fileName,
     JSON.stringify({
-      valueLists: { ...systemResources.valueLists, ...meta.valueLists },
+      valueLists: { ...systemResources.valueLists, ...appComps.valueLists },
     })
   );
   done(fileName);
@@ -108,7 +108,7 @@ export function processMeta(
   writeFileSync(
     fileName,
     JSON.stringify({
-      messages: { ...systemResources.messages, ...meta.messages },
+      messages: { ...systemResources.messages, ...appComps.messages },
     })
   );
   done(fileName);
@@ -122,7 +122,7 @@ export function processMeta(
     JSON.stringify({
       valueSchemas: {
         ...systemResources.valueSchemas,
-        ...meta.valueSchemas,
+        ...appComps.valueSchemas,
       },
     })
   );
@@ -133,7 +133,7 @@ export function processMeta(
    * This needs some serious re-factoring
    */
   const comps: AllRecords = {
-    all: { ...systemResources.records, ...meta.records },
+    all: { ...systemResources.records, ...appComps.records },
     forms: {},
     records: {},
     wrongOnes: {},
@@ -153,7 +153,7 @@ export function processMeta(
   /**
    * 7. sql.json
    */
-  writeJsons(jsonFolder, 'sql', meta.sqls || {});
+  writeJsons(jsonFolder, 'sql', appComps.sqls || {});
 
   /**
    * done with server side. Let's now generate .ts files
@@ -161,7 +161,7 @@ export function processMeta(
   /**
    * 8. listSources.ts
    */
-  generateListSources(meta.valueLists, tsFolder);
+  generateListSources(appComps.valueLists, tsFolder);
 
   /**
    * 9. form.ts and /form/*.ts
@@ -174,8 +174,13 @@ export function processMeta(
   /**
    * 10. pages.ts from /template/*.ts and alter /pageAlterations
    */
-  const pages: StringMap<Page> = { ...(meta.pages || {}) };
-  generatePages(meta.templates || {}, meta.pageAlterations || {}, forms, pages);
+  const pages: StringMap<Page> = { ...(appComps.pages || {}) };
+  generatePages(
+    appComps.templates || {},
+    appComps.pageAlterations || {},
+    forms,
+    pages
+  );
   writeAll(pages, tsFolder, 'Page', 'pages');
 }
 

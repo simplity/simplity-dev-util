@@ -1,9 +1,9 @@
-import { processMeta } from './lib/processMeta';
+import { processComponents } from './lib/processComponents';
 
 /**
  * utility to process all the meta data and generate various artifacts as per the design
  */
-export const metaProcessor = {
+export const componentProcessor = {
   /**
    * process the design components to generate derived components for the server as well as the client
    * 1. JSOn files are created for the server side.
@@ -16,7 +16,7 @@ export const metaProcessor = {
    * @param tsFolder where typescript files are written out.
    * The folder is emptied before writing out generated ts files.
    */
-  processMeta,
+  process: processComponents,
 };
 
 /**

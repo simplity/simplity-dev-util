@@ -1,4 +1,4 @@
-import { AppMeta, StringMap, Value } from 'simplity-types';
+import { AppDesign, StringMap, Value } from 'simplity-types';
 import {
   AOA2SheetOpts,
   utils,
@@ -40,22 +40,22 @@ const EMIT_AS_TREE: StringMap<AttributeNames> = {
   dataPanel: { name: 'name', parent: 'parent', children: 'children' },
 };
 
-type CompAttributeName = keyof AppMeta;
+type CompAttributeName = keyof AppDesign;
 const MAIN_ATTRS: CompAttributeName[] = [
   'name',
-  'version',
-  'date',
-  'description',
+  'appParams',
+  'imageBasePath',
+  'loginServiceName',
+  'logoutServiceName',
+  'serverUrl',
+  'startingLayout',
+  'startingModule',
+  'tenantFieldName',
+  'tenantNameInDb',
   'maxLengthForTextField',
   'tenantFieldName',
   'tenantNameInDb',
-  'loginServiceName',
-  'logoutServiceName',
   'javaRootPackageName',
-  'serverUrl',
-  'imageBasePath',
-  'startingLayout',
-  'startingModule',
   'functions',
   'menuItems',
   'messages',
@@ -66,7 +66,6 @@ const MAIN_ATTRS: CompAttributeName[] = [
   'valueSchemas',
 ];
 const GROUP_ATTRS: CompAttributeName[] = [
-  'appParams',
   'cachedResponses',
   'pages',
   'records',
@@ -109,7 +108,7 @@ function xlsxToJson(xlsxFileName: string): Json {
  * @param meta
  * @param folderName root folder name to be used for writing the files
  */
-function writeXlsx(meta: AppMeta, folderName: string) {
+function writeXlsx(meta: AppDesign, folderName: string) {
   if (existsSync(folderName)) {
     console.info(`cleaning up folder: ${folderName}`);
     rmSync(folderName, FS_OPTIONS);
@@ -151,7 +150,7 @@ function writeXlsxFolder(folder: JsonFolder, currentFolderName: string) {
  * @param meta
  * @returns JsonFolder that can be easily used to create xlsx files using any xlsx utility like SheetJS
  */
-function emitApp(meta: AppMeta): JsonFolder {
+function emitApp(meta: AppDesign): JsonFolder {
   const folder: JsonFolder = {};
   //create a json for all the sheets in app.xlsx in the root folder
   const json: Json = {};

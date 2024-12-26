@@ -14,12 +14,12 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.metaProcessor = void 0;
-const processMeta_1 = require("./lib/processMeta");
+exports.componentProcessor = void 0;
+const processComponents_1 = require("./lib/processComponents");
 /**
  * utility to process all the meta data and generate various artifacts as per the design
  */
-exports.metaProcessor = {
+exports.componentProcessor = {
     /**
      * process the design components to generate derived components for the server as well as the client
      * 1. JSOn files are created for the server side.
@@ -32,10 +32,10 @@ exports.metaProcessor = {
      * @param tsFolder where typescript files are written out.
      * The folder is emptied before writing out generated ts files.
      */
-    processMeta: processMeta_1.processMeta,
+    process: processComponents_1.processComponents,
 };
 /**
  * TODO: re-factor this to expose the right functionality for the app-user
  */
 __exportStar(require("./lib/xlsxUtils"), exports);
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxtREFBZ0Q7QUFFaEQ7O0dBRUc7QUFDVSxRQUFBLGFBQWEsR0FBRztJQUMzQjs7Ozs7Ozs7Ozs7T0FXRztJQUNILFdBQVcsRUFBWCx5QkFBVztDQUNaLENBQUM7QUFFRjs7R0FFRztBQUNILGtEQUFnQyJ9
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSwrREFBNEQ7QUFFNUQ7O0dBRUc7QUFDVSxRQUFBLGtCQUFrQixHQUFHO0lBQ2hDOzs7Ozs7Ozs7OztPQVdHO0lBQ0gsT0FBTyxFQUFFLHFDQUFpQjtDQUMzQixDQUFDO0FBRUY7O0dBRUc7QUFDSCxrREFBZ0MifQ==
