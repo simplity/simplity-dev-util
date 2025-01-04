@@ -427,7 +427,6 @@ function toForm(record: SimpleRecord): Form {
     'serveGuests',
     'validationFn',
     'interFieldValidations',
-    'childRecords',
   ]);
 
   if (record.operations !== undefined) {
@@ -514,7 +513,7 @@ function toChildForms(childRecords: ChildRecord[]): StringMap<ChildForm> {
       'minRows',
       //"name",
     ]);
-    child.name = cr.linkName;
+    child.name = cr.childName;
     child.formName = cr.childRecordName;
     children[child.name as string] = child as ChildForm;
   }

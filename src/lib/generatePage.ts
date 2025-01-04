@@ -5,11 +5,8 @@ import {
   Form,
   NavigationAction,
   Button,
-  FilterAction,
   Tabs,
   Tab,
-  SaveAction,
-  GetAction,
   MenuButton,
   Action,
   TableViewer,
@@ -123,7 +120,7 @@ class Gen {
   /**
    * only the key fields. view
    */
-  private keyParams: Values = {};
+  private keyParams: StringMap<boolean> = {};
   private actions: { [key: string]: Action } = {};
   private buttons: Button[] = [];
 
@@ -181,12 +178,12 @@ class Gen {
         formOperation: 'get',
         formName: t.formName,
         params: this.keyParams,
-      } as GetAction,
+      },
       close: {
         name: 'close',
         type: 'navigation',
         menuName: this.template.menuToGoBack,
-      } as NavigationAction,
+      },
     };
 
     this.buttons.push({
@@ -221,19 +218,19 @@ class Gen {
           name: tab.name,
           compType: 'panel',
           children: this.getChildArray(tab.fields, hiddenOnes),
-        } as Tab);
+        });
       }
       dataPanel = {
         name: 'viewTabs',
         compType: 'tabs',
         children: tabs,
-      } as Tabs;
+      };
     } else {
       dataPanel = {
         name: 'viewPanel',
         compType: 'panel',
         children: this.getChildArray(this.form.fieldNames, hiddenOnes),
-      } as Panel;
+      };
     }
 
     return {
@@ -398,25 +395,25 @@ class Gen {
         formOperation: 'get',
         formName: t.formName,
         params: this.keyParams,
-      } as GetAction,
+      },
       save: {
         name: 'save',
         type: 'form',
         formOperation: 'save',
         formName: t.formName,
         onSuccess: 'close',
-      } as SaveAction,
+      },
       cancel: {
         name: 'cancel',
         type: 'navigation',
         menuName: this.template.menuToGoBack,
         warnIfModified: true,
-      } as NavigationAction,
+      },
       close: {
         name: 'close',
         type: 'navigation',
         menuName: this.template.menuToGoBack,
-      } as NavigationAction,
+      },
     };
 
     this.buttons = [
@@ -458,19 +455,19 @@ class Gen {
           tabLabel: tab.label,
           icon: tab.icon,
           children: this.getChildArray(tab.fields, hiddenOnes, true),
-        } as Tab);
+        });
       }
       dataPanel = {
         name: 'editTabs',
         compType: 'tabs',
         children: tabs,
-      } as Tabs;
+      };
     } else {
       dataPanel = {
         name: 'editPanel',
         compType: 'panel',
         children: this.getChildArray(this.form.fieldNames, hiddenOnes, true),
-      } as Panel;
+      };
     }
 
     return {
@@ -507,7 +504,7 @@ class Gen {
       formName: t.formName,
       childName: 'itemsList',
       filterParams: t.filterParams,
-    } as FilterAction;
+    };
 
     if (t.onRowClickMenu) {
       this.addNavAction(t.onRowClickMenu, this.allParams);
@@ -553,7 +550,7 @@ class Gen {
       onRowClick: t.onRowClickMenu,
       rowActions: t.rowActionMenus,
       columns,
-    } as TableViewer);
+    });
 
     return {
       name: t.name,
@@ -586,19 +583,19 @@ class Gen {
       type: 'form',
       formOperation: 'get',
       formName: t.formName,
-    } as GetAction;
+    };
 
     this.actions.submitData = {
       name: 'submitData',
       type: 'form',
       formOperation: 'save',
       formName: t.formName,
-    } as SaveAction;
+    };
 
     this.actions.cancel = {
       name: 'cancel',
       type: 'navigation',
-    } as NavigationAction;
+    };
     /**
      * buttons
      */
@@ -632,7 +629,7 @@ class Gen {
       editable: true,
       formName: t.gridName,
       children: leaves,
-    } as TableEditor);
+    });
     return {
       name: t.name,
       formName: t.formName,
@@ -657,7 +654,7 @@ class Gen {
       name,
       menuName: name,
       params,
-    } as NavigationAction;
+    };
   }
 }
 
@@ -694,7 +691,7 @@ function toListPage(master: MasterPage): ListPage {
     },
     onRowClickMenu: master.name + 'View',
     renderButtonsBeforeData: true,
-  } as ListPage;
+  };
 }
 
 function toSavePage(master: MasterPage): SavePage {
