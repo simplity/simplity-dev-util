@@ -408,7 +408,7 @@ class Gen {
             formOperation: 'filter',
             formName: t.formName,
             childName: 'itemsList',
-            filterParams: t.filterParams,
+            filterFields: t.filterFields,
         };
         if (t.onRowClickMenu) {
             this.addNavAction(t.onRowClickMenu, this.allParams);
@@ -453,7 +453,7 @@ class Gen {
             name: t.name,
             titlePrefix: t.label,
             serveGuests: this.form.serveGuests,
-            onLoadActions: t.filterParams || t.allowConfiguration ? undefined : ['filter'],
+            onLoadActions: t.filterFields || t.allowConfiguration ? undefined : ['filter'],
             actions: this.actions,
             middleButtons: this.buttons,
             hideModules: false,
@@ -523,7 +523,7 @@ class Gen {
             formName: t.formName,
             titlePrefix: t.label,
             serveGuests: this.form.serveGuests,
-            onLoadActions: t.filterParams ? undefined : ['getData'],
+            onLoadActions: t.filterFields ? undefined : ['getData'],
             actions: this.actions,
             middleButtons: this.buttons,
             hideModules: false,
@@ -552,7 +552,7 @@ function toListPage(master) {
         label: master.label + ' List',
         columnNames: master.columnNames,
         additionalInputParams: master.additionalInputParams,
-        filterParams: master.filterParams,
+        filterFields: master.filterFields,
         /**
          * TODO: convert this to the vertical dots notation
          */
