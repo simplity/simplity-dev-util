@@ -140,7 +140,7 @@ function alterChildren(
 ): number {
   const parentName = parent.name;
   const comps: PageComponent[] = [];
-  for (const child of parent.children) {
+  for (const child of parent.children!) {
     if (nbrTasks < 1) {
       comps.push(child);
       continue;

@@ -182,7 +182,7 @@ class Gen {
       close: {
         name: 'close',
         type: 'navigation',
-        menuName: this.template.menuToGoBack,
+        menuItem: this.template.menuToGoBack,
       },
     };
 
@@ -272,7 +272,7 @@ class Gen {
     const a: NavigationAction = {
       name: actionName,
       type: 'navigation',
-      menuName: btn.menuName,
+      menuItem: btn.menuItem,
       params,
     };
     this.actions[actionName] = a;
@@ -406,13 +406,13 @@ class Gen {
       cancel: {
         name: 'cancel',
         type: 'navigation',
-        menuName: this.template.menuToGoBack,
+        menuItem: this.template.menuToGoBack,
         warnIfModified: true,
       },
       close: {
         name: 'close',
         type: 'navigation',
-        menuName: this.template.menuToGoBack,
+        menuItem: this.template.menuToGoBack,
       },
     };
 
@@ -511,8 +511,8 @@ class Gen {
     }
 
     if (t.rowActionMenus) {
-      for (const menuName of Object.keys(t.rowActionMenus)) {
-        this.addNavAction(menuName, this.allParams);
+      for (const menuItem of Object.keys(t.rowActionMenus)) {
+        this.addNavAction(menuItem, this.allParams);
       }
     }
 
@@ -522,14 +522,14 @@ class Gen {
     if (t.newButton) {
       //new button with onClick action as masterAdd
       const nb = t.newButton;
-      this.addNavAction(nb.menuName, this.addParams);
+      this.addNavAction(nb.menuItem, this.addParams);
       this.buttons.push({
         name: 'newButton',
         compType: 'button',
         buttonType: 'navigation',
         label: nb.label,
         icon: nb.icon,
-        onClick: nb.menuName, //action name same as menu name
+        onClick: nb.menuItem, //action name same as menu name
       });
     }
 
@@ -652,7 +652,7 @@ class Gen {
     this.actions[name] = {
       type: 'navigation',
       name,
-      menuName: name,
+      menuItem: name,
       params,
     };
   }
@@ -675,19 +675,19 @@ function toListPage(master: MasterPage): ListPage {
       {
         name: 'viewButton',
         label: 'VIEW',
-        menuName: master.name + 'View',
+        menuItem: master.name + 'View',
       },
       {
         name: 'editButton',
         label: 'EDIT',
-        menuName: master.name + 'Edit',
+        menuItem: master.name + 'Edit',
       },
     ],
     */
     newButton: {
       name: 'newButton',
       label: 'ADD ' + master.label.toUpperCase(),
-      menuName: master.name + 'Add',
+      menuItem: master.name + 'Add',
     },
     onRowClickMenu: master.name + 'View',
     renderButtonsBeforeData: true,
@@ -717,12 +717,12 @@ function toViewPage(master: MasterPage): ViewPage {
     menuToGoBack: master.name + 'List',
     editButton: {
       name: 'editButton',
-      menuName: master.name + 'Edit',
+      menuItem: master.name + 'Edit',
       label: 'Edit',
     },
     createButton: {
       name: 'addButton',
-      menuName: master.name + 'Add',
+      menuItem: master.name + 'Add',
       label: 'New ' + master.label,
     },
   } as ViewPage;

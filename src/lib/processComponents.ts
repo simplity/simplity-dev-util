@@ -18,13 +18,15 @@ import {
   Record,
   SimpleRecord,
   StringMap,
-  systemResources,
   ValidFormOperations,
   ValueList,
   ValueType,
+  Panel,
+  PageComponent,
 } from 'simplity-types';
 import { generatePage } from './generatePage';
 import { alterPage } from './alterPage';
+import { systemResources } from './systemResources';
 
 /**
  * attributes for application.json
@@ -51,31 +53,40 @@ type AllRecords = {
    */
   wrongOnes: StringMap<true>;
 };
+export const devUtil = {
+  /**
+   * process the design components to generate derived components for the server as well as the client
+   * 1. JSOn files are created for the server side.
+   * 2. ts files for ListSources are generated for the client-side
+   * 3. ts files for Form are generated for the client-side
+   * 4. pages are generated, and altered if required, for all the templates.
+   * @param appDesign all the input for processing
+   * @param jsonFolder where the json files are to be written out.
+   * The folder is emptied before writing out generated JSONs.
+   * @param tsFolder where typescript files are written out.
+   * The folder is emptied before writing out generated ts files.
+   *
+   */
+  processComponents,
+};
 
-/**
- * process the design components to generate derived components for the server as well as the client
- * 1. JSOn files are created for the server side.
- * 2. ts files for ListSources are generated for the client-side
- * 3. ts files for Form are generated for the client-side
- * 4. pages are generated, and altered if required, for all the templates.
- * @param appDesign all the input for processing
- * @param jsonFolder where the json files are to be written out.
- * The folder is emptied before writing out generated JSONs.
- * @param tsFolder where typescript files are written out.
- * The folder is emptied before writing out generated ts files.
- *
- */
-export function processComponents(
+function processComponents(
   appComps: AppDesign,
   jsonFolder: string,
   tsFolder: string
 ) {
+  /**
+   * clean-p folders that we are going to generate to
+   */
   rmSync(jsonFolder, { recursive: true, force: true });
   mkdirSync(jsonFolder);
 
   rmSync(tsFolder, { recursive: true, force: true });
   mkdirSync(tsFolder);
 
+  /**
+   * 1. application.json
+   */
   let fileName = jsonFolder + 'application.json';
   const appJson: AppJson = {
     appName: appComps.name,
@@ -83,12 +94,10 @@ export function processComponents(
     tenantFieldName: appComps.tenantFieldName,
     tenantNameInDb: appComps.tenantNameInDb,
   };
-  /**
-   * 1. application.json
-   */
   writeFileSync(fileName, JSON.stringify(appJson));
   done(fileName);
 
+  //let allOK = true;
   /**
    * 2. valueLists.json
    */
@@ -131,6 +140,8 @@ export function processComponents(
   /**
    * records are quite clumsy as of now because of the mismatch between the way the server and the client use the terms "forms" and "records".
    * This needs some serious re-factoring
+   *
+   * Note: framework requires some records
    */
   const comps: AllRecords = {
     all: { ...systemResources.records, ...appComps.records },
@@ -174,7 +185,13 @@ export function processComponents(
   /**
    * 10. pages.ts from /template/*.ts and alter /pageAlterations
    */
-  const pages: StringMap<Page> = { ...(appComps.pages || {}) };
+  const pages = appComps.pages || {};
+  const n = modifyPanels(pages, forms);
+  if (n > 0) {
+    console.error(
+      `\n\n${n} ERROR: errors found in the pages. Generated Pages may not be usable!!`
+    );
+  }
   generatePages(
     appComps.templates || {},
     appComps.pageAlterations || {},
@@ -476,9 +493,10 @@ function toDataField(field: Field): DataField {
     'imageNamePrefix',
     'imageNameSuffix',
     'isPassword',
-    //"isRequired",
     'label',
+    'listKeyFieldName',
     'listKeyName',
+    'listKeyValue',
     'listName',
     'listOptions',
     'name',
@@ -490,6 +508,7 @@ function toDataField(field: Field): DataField {
     'valueType',
     'width',
   ]);
+
   dataField.isRequired = !!field.isRequired;
   dataField.compType = 'field';
   if (!field.renderAs) {
@@ -536,6 +555,103 @@ function getRenderAs(field: Field, valueType: ValueType): FieldRendering {
     default:
       return 'output';
   }
+}
+
+/**
+ * go through pages, alert any errors, and expand fields ina panel if required before copying it the new collection
+ * @param pages
+ */
+function modifyPanels(pages: StringMap<Page>, forms: StringMap<Form>): number {
+  let n = 0;
+  for (const page of Object.values(pages)) {
+    const form = page.formName ? forms[page.formName] : undefined;
+    n += modifyPanel(page.dataPanel, form, forms, page.name);
+  }
+  return n;
+}
+
+function modifyPanel(
+  panel: Panel,
+  form: Form | undefined,
+  forms: StringMap<Form>,
+  pageName: string
+): number {
+  let n = 0;
+
+  if (panel.childFormName) {
+    form = forms[panel.childFormName];
+    if (!form) {
+      console.error(
+        `Page '${pageName}': Panel ${panel.name} refers to form '${panel.childFormName}' but that form is not defined`
+      );
+      return 1;
+    }
+  }
+
+  if (panel.children && panel.fieldNames) {
+    console.error(
+      `Page '${pageName}': Panel ${panel.name} defines both children and fieldNames. Note that fieldNames is to be used in leu of children, if fields are to be rendered from the associated form`
+    );
+    return 1;
+  }
+
+  const children: PageComponent[] = [];
+  // do we need to generate child components based on form fields?
+  if (panel.fieldNames) {
+    if (!form) {
+      console.error(
+        `Page '${pageName}': Panel ${panel.name} defines fieldName, but no form is associated with this page.`
+      );
+      return 1;
+    }
+    const names =
+      panel.fieldNames === 'all' ? form.fieldNames : panel.fieldNames;
+    for (const fieldName of names) {
+      const f = form.fields[fieldName];
+      if (f) {
+        children.push(f);
+      } else {
+        console.error(
+          `Page ${pageName}: Panel ${panel.name} specifies '${fieldName}' as one of the fields but that field is not defined in the associated form '${form!.name}' `
+        );
+        n++;
+      }
+    }
+    panel.children = children;
+    return n;
+  }
+
+  //either fieldNames or children. Hence panel.children will be non-null
+  for (const child of panel.children!) {
+    if (child.compType === 'referred') {
+      if (form) {
+        const f = form.fields[child.name];
+        if (f) {
+          //we start with the form field, override with whatever is specified by this child, and then restore the compType to 'field'
+          children.push({ ...f, ...child, compType: 'field' });
+        } else {
+          console.error(
+            `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but that field is not defined in the associated form '${form.name}' `
+          );
+          n++;
+        }
+      } else {
+        console.error(
+          `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but no form is associated with this page.`
+        );
+        n++;
+      }
+      continue;
+    }
+
+    children.push(child);
+
+    if (child.compType === 'panel') {
+      n += modifyPanel(child as Panel, form, forms, pageName);
+    }
+  }
+  panel.children = children;
+  return n;
 }
 
 /**
@@ -614,4 +730,22 @@ function writeAll(
   const fileName = rootFolder + allCompsName + '.ts';
   writeFileSync(fileName, t.join('\n'));
   done(fileName);
+}
+
+export function checkValueLists(lists: StringMap<ValueList>): number {
+  let n = 0;
+  for (const [name, list] of Object.entries(lists)) {
+    if (name === '') {
+      console.error(`EMpty string as name found in file valueLists.ts.`);
+      n++;
+    }
+
+    if (name !== list.name) {
+      console.error(
+        `Value list with name='${list.name}' is indexed as '${name}' in the file valueLists.ts. Value list must be indexed as its name`
+      );
+      n++;
+    }
+  }
+  return n;
 }
