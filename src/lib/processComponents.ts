@@ -23,6 +23,9 @@ import {
   ValueType,
   Panel,
   PageComponent,
+  FieldType,
+  TableViewer,
+  TableEditor,
 } from 'simplity-types';
 import { generatePage } from './generatePage';
 import { alterPage } from './alterPage';
@@ -486,30 +489,40 @@ function toDataFields(
 function toDataField(field: Field): DataField {
   const dataField: StringMap<unknown> = {};
   copyAttrs(field, dataField, [
-    'cssClassNames',
     'customHtml',
     'defaultValue',
+    'filterable',
+    'formattingFn',
+    'hideInList',
+    'hideInSave',
     'hint',
+    'icon',
     'imageNamePrefix',
     'imageNameSuffix',
-    'isPassword',
+    'isArray',
     'label',
+    'labelAttributes',
     'listKeyFieldName',
-    'listKeyName',
     'listKeyValue',
     'listName',
     'listOptions',
     'name',
+    'messageId',
     'onBeingChanged',
     'onChange',
     'onClick',
+    'placeHolder',
+    'prefix',
+    'sortable',
+    'suffix',
     'renderAs',
+    'valueFormatter',
     'valueSchema',
     'valueType',
     'width',
   ]);
 
-  dataField.isRequired = !!field.isRequired;
+  dataField.isRequired = toIsRequired(field.fieldType);
   dataField.compType = 'field';
   if (!field.renderAs) {
     dataField.renderAs = getRenderAs(field, field.valueType);
@@ -517,7 +530,11 @@ function toDataField(field: Field): DataField {
 
   return dataField as DataField;
 }
-
+function toIsRequired(ft: FieldType): boolean {
+  return (
+    ft === 'generatedPrimaryKey' || ft === 'primaryKey' || ft === 'requiredData'
+  );
+}
 function toChildForms(childRecords: ChildRecord[]): StringMap<ChildForm> {
   const children: StringMap<ChildForm> = {};
   for (const cr of childRecords) {
@@ -648,12 +665,52 @@ function modifyPanel(
 
     if (child.compType === 'panel') {
       n += modifyPanel(child as Panel, form, forms, pageName);
+      continue;
+    }
+    if (child.compType === 'table') {
+      const form = child.formName ? forms[child.formName] : undefined;
+      n += modifyTable(child as TableViewer | TableEditor, form);
     }
   }
   panel.children = children;
   return n;
 }
 
+function modifyTable(
+  table: TableViewer | TableEditor,
+  form: Form | undefined
+): number {
+  let n = 0;
+  const children = table.children;
+  if (!children || !children.length) {
+    return 0;
+  }
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child.compType !== 'referred') {
+      continue;
+    }
+    if (!form) {
+      console.error(
+        `Field ${child.name} is a referred field, but the page or the enclosing panel does not specify a form`
+      );
+      n++;
+      continue;
+    }
+
+    let f = form.fields[child.name];
+    if (f) {
+      children[i] = { ...f, ...child, compType: 'field' };
+      continue;
+    }
+
+    console.error(
+      `Field ${child.name} is a referred field, but the form ${form.name} has no field with that name`
+    );
+    n++;
+  }
+  return n;
+}
 /**
  * simplity generates the pages ate boot-time before loading them to memory.
  * generated pages are NOT used by simplity. This is only for the developer's to understand and possibly debug issues in page meta data
