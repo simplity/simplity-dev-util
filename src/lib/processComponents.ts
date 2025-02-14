@@ -46,7 +46,7 @@ type AllRecords = {
   /**
    * simple/extended records
    */
-  records: StringMap<SimpleRecord>;
+  simpleRecords: StringMap<SimpleRecord>;
   /**
    * composite Records: called as clientForm by the server
    */
@@ -149,7 +149,7 @@ function processComponents(
   const comps: AllRecords = {
     all: { ...systemResources.records, ...appComps.records },
     forms: {},
-    records: {},
+    simpleRecords: {},
     wrongOnes: {},
   };
 
@@ -157,8 +157,9 @@ function processComponents(
 
   /**
    * 5. records.json
+   * we will write the converted ones. Java generator need not handle 'extended' records...
    */
-  writeJsons(jsonFolder, 'rec', comps.all);
+  writeJsons(jsonFolder, 'rec', { ...comps.all, ...comps.simpleRecords });
   /**
    * 6. forms.json
    */
@@ -180,7 +181,7 @@ function processComponents(
   /**
    * 9. form.ts and /form/*.ts
    */
-  //forms are needed for tus to generate pages
+  //forms are needed for us to generate pages
   const forms: StringMap<Form> = {};
   generateForms(comps, forms);
   writeAll(forms, tsFolder, 'Form', 'forms');
@@ -210,126 +211,188 @@ function done(fileName: string): void {
 
 function organizeRecords(comps: AllRecords): void {
   for (const [name, record] of Object.entries(comps.all)) {
-    if (record.recordType === 'composite') {
+    const rt = record.recordType;
+    if (rt === 'composite') {
       comps.forms[name] = record;
-    } else if (record.recordType === 'simple') {
-      comps.records[name] = record;
-    } //else it is extended. We will handle it later
+    } else if (rt === 'simple') {
+      comps.simpleRecords[name] = record;
+    } else {
+      //we have to extend it. Let us do it later
+    }
   }
 
-  /**
-   * expand all extended records
-   */
+  //extend all the "extended" records
   for (const record of Object.values(comps.all)) {
     if (record.recordType === 'extended') {
+      //convert it to simple and add it to records collection
       toSimpleRecord(record, comps, []);
     }
   }
 }
 
+/**
+ * convert the extended record to simple record, and add it to the records collections
+ * @returns new simple record that is already added to the records collection
+ */
 function toSimpleRecord(
   record: ExtendedRecord,
   comps: AllRecords,
   dependencies: string[]
 ): SimpleRecord | undefined {
-  const name = record.name;
+  const recordName = record.name;
 
-  if (comps.wrongOnes[name]) {
-    //already detected
-    return undefined;
+  const sr = comps.simpleRecords[recordName];
+  if (sr) {
+    //already converted and put to records. This happens if it was a main-record for another extended record
+    return sr;
   }
 
-  //are we getting into an infinite loop?
-  const idx = dependencies.indexOf(name);
-  if (idx !== -1) {
-    console.error(
-      `Record ${name} is an extended record, but has a recursive dependency on itself`
-    );
-    const t = dependencies.slice(idx);
-    t.push(name);
-    console.error(t.join(' --> '));
-    //actually, all the entries are wrong ones, but we will anyway go through them as the recursive function returns...
-    comps.wrongOnes[name] = true;
+  if (comps.wrongOnes[recordName]) {
+    //already detected as a problematic one
     return undefined;
   }
 
   const mainRecordName = record.mainRecordName;
-  const mainRecord = comps.all[mainRecordName];
-  if (mainRecord === undefined) {
+  if (recordName === mainRecordName) {
     console.error(
-      `Extended record ${name} uses mainRecordName="${mainRecordName}", but that record is not defined`
+      `ERROR: Extended ${recordName} has set itself as its mainRecord!! `
     );
-    comps.wrongOnes[name] = true;
+    comps.wrongOnes[recordName] = true;
     return undefined;
   }
 
-  if (mainRecord.recordType === 'composite') {
+  //are we getting into an infinite loop?
+  const idx = dependencies.indexOf(recordName);
+  if (idx !== -1) {
     console.error(
-      `Extended record ${name} uses mainRecordName="${mainRecordName}", but that is a form/composite-record`
+      `ERROR: Record ${recordName} is an extended record, but has a cyclical/recursive dependency on itself`
     );
-    comps.wrongOnes[name] = true;
+    const t = dependencies.slice(idx);
+    t.push(recordName);
+    console.error(t.join(' --> '));
+    //actually, all the entries are wrong ones, but we will anyway go through them as the recursive function returns...
+    comps.wrongOnes[recordName] = true;
     return undefined;
   }
 
-  let refRecord: SimpleRecord | undefined;
-  if (mainRecord.recordType === 'simple') {
-    refRecord = mainRecord;
-  } else {
-    //we need to covert this first
-    refRecord = comps.records[mainRecordName];
-    if (!refRecord) {
-      dependencies.push(mainRecordName);
-      refRecord = toSimpleRecord(mainRecord, comps, dependencies);
-      dependencies.pop();
+  let mainRecord: Record | undefined = comps.simpleRecords[mainRecordName];
+  if (!mainRecord) {
+    mainRecord = comps.all[mainRecordName];
+    if (mainRecord === undefined) {
+      console.error(
+        `Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that record is not defined`
+      );
+
+      comps.wrongOnes[recordName] = true;
+      return undefined;
+    }
+
+    if (mainRecord.recordType === 'composite') {
+      console.error(
+        `Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that is a form/composite-record`
+      );
+
+      comps.wrongOnes[recordName] = true;
+      return undefined;
+    }
+
+    /**
+     * recurse to get the main-record converted first
+     */
+    dependencies.push(recordName);
+    mainRecord = toSimpleRecord(
+      mainRecord as ExtendedRecord,
+      comps,
+      dependencies
+    );
+    dependencies.pop();
+
+    if (!mainRecord) {
+      comps.wrongOnes[recordName] = true;
+      return undefined;
     }
   }
 
-  if (refRecord === undefined) {
-    comps.wrongOnes[name] = true;
+  const newRecord = extendIt(record, mainRecord);
+  if (!newRecord) {
+    comps.wrongOnes[recordName] = true;
     return undefined;
   }
 
-  const newRecord = extendIt(record, refRecord);
-  comps.records[name] = newRecord;
+  comps.simpleRecords[recordName] = newRecord;
   return newRecord;
 }
 
-function extendIt(record: ExtendedRecord, ref: SimpleRecord): SimpleRecord {
-  const newRecord: StringMap<unknown> = {
+function extendIt(
+  recordToExtend: ExtendedRecord,
+  ref: SimpleRecord
+): SimpleRecord | undefined {
+  const obj: StringMap<any> = {
     ...ref,
-    ...record,
+    ...recordToExtend,
     recordType: 'simple',
   };
+  delete obj.fieldNames;
+  delete obj.additionalFields;
+  delete obj.mainRecordName;
+  if (!recordToExtend.nameInDb && !recordToExtend.operations && ref.nameInDb) {
+    //extended record does not want any db operation. Let's not override it.
+    delete obj.nameInDb;
+    delete obj.operations;
+  }
+  const newFields: Field[] = [];
+  obj.fields = newFields;
 
-  if (record.fieldNames) {
-    const fields: StringMap<Field> = {};
-    for (const field of ref.fields) {
-      fields[field.name] = field;
-    }
-    const newFields: Field[] = [];
-    for (const fieldName of record.fieldNames) {
-      const field = fields[fieldName];
-      if (field) {
-        newFields.push(field);
-      } else {
-        console.error(
-          `Extended record ${record.name} specifies ${fieldName} as a reference field but that field is not defined in the reference record ${ref.name}. Field skipped`
-        );
-      }
-    }
-    newRecord.fields = newFields;
-    delete newRecord.fieldNames;
+  const newRecord = obj as SimpleRecord;
+
+  //fields from ref records into a map
+  const refFields: StringMap<Field> = {};
+  for (const field of ref.fields) {
+    refFields[field.name] = field;
   }
 
-  if (record.additionalFields) {
-    const fields = newRecord.fields as Field[];
-    for (const field of record.additionalFields) {
-      fields.push(field);
+  if (recordToExtend.fieldNames && recordToExtend.fieldNames[0] !== '*') {
+    // subset of fields to be copied
+    for (const fieldName of recordToExtend.fieldNames) {
+      const field = refFields[fieldName];
+      if (!field) {
+        console.error(
+          `ERROR: Extended record ${recordToExtend.name} specifies ${fieldName} as a reference field but that field is not defined in the reference record ${ref.name}. Field skipped`
+        );
+        return undefined;
+      }
+      newFields.push(field);
     }
-    delete newRecord.additionalFields;
+  } else {
+    // copy all records
+    for (const field of ref.fields) {
+      newFields.push(field);
+    }
+  }
+
+  if (recordToExtend.additionalFields) {
+    for (const field of recordToExtend.additionalFields) {
+      if (refFields[field.name]) {
+        if (replaceField(field, newRecord.fields)) {
+          continue; // replaced an existing entry in the array
+        }
+      }
+      newFields.push(field);
+    }
   }
 
   return newRecord as SimpleRecord;
+}
+
+function replaceField(field: Field, fields: Field[]): boolean {
+  const fieldName = field.name;
+  for (let i = 0; i < fields.length; i++) {
+    if (fields[i].name === fieldName) {
+      fields[i] = field;
+      return true;
+    }
+  }
+  return false;
 }
 
 function copyAttrs(
@@ -408,24 +471,25 @@ function generateForms(comps: AllRecords, forms: StringMap<Form>) {
       continue;
     }
 
-    let sr: SimpleRecord | undefined;
     let childRecords: ChildRecord[] | undefined;
-    if (record.recordType === 'simple') {
-      sr = record as SimpleRecord;
-    } else if (record.recordType === 'extended') {
-      sr = comps.records[name];
-    } else {
-      childRecords = record.childRecords;
-      const ref = comps.records[record.mainRecordName];
+    let sr: SimpleRecord | undefined = comps.simpleRecords[name];
+    if (!sr) {
+      /**
+       * this is a composite record. We create form for the main form as a simple record first
+       */
+      const cr = record as CompositeRecord;
+      childRecords = cr.childRecords;
+
+      const ref = comps.simpleRecords[cr.mainRecordName];
 
       if (ref === undefined) {
         console.error(
-          `Composite Record "${name}" has mainRecord="${record.mainRecordName}" but that record is not defined, or is a composite-record. Source NOT generated`
+          `Composite/extended Record "${name}" has mainRecord="${cr.mainRecordName}" but that record is not defined, or is a composite-record. Source NOT generated`
         );
         continue;
       }
 
-      const temp: StringMap<unknown> = { ...record };
+      const temp: StringMap<unknown> = { ...cr };
       delete temp.childForms;
       temp.fields = ref.fields;
       sr = temp as SimpleRecord;
