@@ -669,15 +669,8 @@ function modifyPanel(
     }
   }
 
-  if (panel.children && panel.fieldNames) {
-    console.error(
-      `Page '${pageName}': Panel ${panel.name} defines both children and fieldNames. Note that fieldNames is to be used in leu of children, if fields are to be rendered from the associated form`
-    );
-    return 1;
-  }
-
   const children: PageComponent[] = [];
-  // do we need to generate child components based on form fields?
+  // start with any fields selected from the associated form
   if (panel.fieldNames) {
     if (!form) {
       console.error(
@@ -698,42 +691,41 @@ function modifyPanel(
         n++;
       }
     }
-    panel.children = children;
-    return n;
   }
 
-  //either fieldNames or children. Hence panel.children will be non-null
-  for (const child of panel.children!) {
-    if (child.compType === 'referred') {
-      if (form) {
-        const f = form.fields[child.name];
-        if (f) {
-          //we start with the form field, override with whatever is specified by this child, and then restore the compType to 'field'
-          children.push({ ...f, ...child, compType: 'field' });
+  if (panel.children) {
+    for (const child of panel.children!) {
+      if (child.compType === 'referred') {
+        if (form) {
+          const f = form.fields[child.name];
+          if (f) {
+            //we start with the form field, override with whatever is specified by this child, and then restore the compType to 'field'
+            children.push({ ...f, ...child, compType: 'field' });
+          } else {
+            console.error(
+              `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but that field is not defined in the associated form '${form.name}' `
+            );
+            n++;
+          }
         } else {
           console.error(
-            `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but that field is not defined in the associated form '${form.name}' `
+            `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but no form is associated with this page.`
           );
           n++;
         }
-      } else {
-        console.error(
-          `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but no form is associated with this page.`
-        );
-        n++;
+        continue;
       }
-      continue;
-    }
 
-    children.push(child);
+      children.push(child);
 
-    if (child.compType === 'panel') {
-      n += modifyPanel(child as Panel, form, forms, pageName);
-      continue;
-    }
-    if (child.compType === 'table') {
-      const form = child.formName ? forms[child.formName] : undefined;
-      n += modifyTable(child as TableViewer | TableEditor, form);
+      if (child.compType === 'panel') {
+        n += modifyPanel(child as Panel, form, forms, pageName);
+        continue;
+      }
+      if (child.compType === 'table') {
+        const form = child.formName ? forms[child.formName] : undefined;
+        n += modifyTable(child as TableViewer | TableEditor, form);
+      }
     }
   }
   panel.children = children;
