@@ -639,7 +639,7 @@ function getRenderAs(field: Field, valueType: ValueType): FieldRendering {
 }
 
 /**
- * go through pages, alert any errors, and expand fields ina panel if required before copying it the new collection
+ * go through pages, alert any errors, and expand fields in a panel if required before copying it the new collection
  * @param pages
  */
 function modifyPanels(pages: StringMap<Page>, forms: StringMap<Form>): number {
@@ -768,8 +768,7 @@ function modifyTable(
   return n;
 }
 /**
- * simplity generates the pages ate boot-time before loading them to memory.
- * generated pages are NOT used by simplity. This is only for the developer's to understand and possibly debug issues in page meta data
+ * generated pages are written to a separate folder, and the run time system uses these generated pages rather than the ones written by the programmer
  */
 function generatePages(
   templates: StringMap<PageTemplate>,
