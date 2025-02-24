@@ -45,7 +45,7 @@ const arrAttributes: (keyof Page & keyof PageAlteration)[] = [
  * @param alterations
  */
 export function alterPage(page: Page, alts: PageAlteration): void {
-  console.info(`page ${page.name} is going to be altered`);
+  //console.info(`page ${page.name} is going to be altered`);
 
   //step-1: copy simple attributes
   for (const attr of simpleAttributes) {
@@ -53,7 +53,6 @@ export function alterPage(page: Page, alts: PageAlteration): void {
     if (val !== undefined) {
       //@ts-expect-error  we are certainly copying the right value. How do we tell this to lint?
       page[attr] = val;
-      console.info(`page.${attr} changed to ${val}`);
     }
   }
 
@@ -64,7 +63,6 @@ export function alterPage(page: Page, alts: PageAlteration): void {
       continue;
     }
 
-    console.info(`objects will be added/replaced for page[${attr}] `);
     let target = page[attr] as StringMap<unknown>;
     if (!target) {
       target = {};
@@ -82,7 +80,6 @@ export function alterPage(page: Page, alts: PageAlteration): void {
       continue;
     }
 
-    console.info(`values will be appended to page[${attr}] `);
     let target = page[attr] as unknown[];
     if (target === undefined) {
       target = [];
@@ -91,7 +88,6 @@ export function alterPage(page: Page, alts: PageAlteration): void {
     }
 
     for (const a of src) {
-      console.info(`${a} appended`);
       target.push(a);
     }
   }
@@ -101,9 +97,6 @@ export function alterPage(page: Page, alts: PageAlteration): void {
    */
   const childComps = page.dataPanel?.children;
   if (!childComps) {
-    console.info(
-      `Page has no components inside it dataPanel. No alterations processed for child components`
-    );
     return;
   }
   /**
@@ -153,11 +146,10 @@ function alterChildren(
     if (toDelete) {
       if (anUpdate) {
         console.warn(
-          `Element ${parentName} specifies that its child element ${childName} be altered, but it also specifies that it should be deleted. deletion command ignored.`
+          `Warning: Element ${parentName} specifies that its child element ${childName} be altered, but it also specifies that it should be deleted. deletion command ignored.`
         );
         nbrTasks--;
       } else {
-        console.info(`Child element ${childName} deleted`);
         nbrTasks--;
         continue;
       }
@@ -167,7 +159,6 @@ function alterChildren(
       for (const [attName, value] of Object.entries(anUpdate)) {
         //@ts-ignore  this is a generic code for type-safety is traded-off
         child[attName] = value;
-        console.info(`${childName}.${attName} got modified`);
       }
       nbrTasks--;
     }
@@ -178,9 +169,6 @@ function alterChildren(
     let alreadyPushed = false;
     if (nbrToAdd) {
       const toInsert = anAdd.insertBefore;
-      console.info(
-        `Going to add components ${toInsert ? 'before' : 'after'} ${childName} `
-      );
 
       if (!toInsert) {
         comps.push(child);
@@ -189,7 +177,6 @@ function alterChildren(
 
       for (const c of compsToAdd) {
         comps.push(c);
-        console.info(`${c.name} added`);
       }
       nbrTasks--;
     }

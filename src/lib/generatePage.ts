@@ -28,7 +28,7 @@ import {
 export function generatePage(
   template: PageTemplate,
   form: Form,
-  pages: StringMap<Page>
+  pages: StringMap<Page>,
 ): number {
   const templateName = template.name;
   let nbr = 0;
@@ -39,9 +39,8 @@ export function generatePage(
     if (pageExists(pageName, pages, templateName) === false) {
       pages[pageName] = new Gen(
         toListPage(template as MasterPage),
-        form
+        form,
       ).generate();
-      console.info(`page ${pageName} generated.`);
       nbr++;
     }
 
@@ -49,9 +48,8 @@ export function generatePage(
     if (pageExists(pageName, pages, templateName) === false) {
       pages[pageName] = new Gen(
         toViewPage(template as MasterPage),
-        form
+        form,
       ).generate();
-      console.info(`page ${pageName} generated.`);
       nbr++;
     }
 
@@ -59,9 +57,8 @@ export function generatePage(
     if (pageExists(pageName, pages, templateName) === false) {
       pages[pageName] = new Gen(
         toSavePage(template as MasterPage),
-        form
+        form,
       ).generate();
-      console.info(`page ${pageName} generated.`);
       nbr++;
     }
 
@@ -73,14 +70,13 @@ export function generatePage(
   }
 
   pages[templateName] = new Gen(template, form).generate();
-  console.info(`page ${templateName} generated.`);
   return 1;
 }
 
 function pageExists(
   name: string,
   pages: StringMap<Page>,
-  masterName?: string
+  masterName?: string,
 ): boolean {
   if (!pages[name]) {
     return false;
@@ -95,7 +91,7 @@ function pageExists(
   }
 
   msg += `\nPage generated with the template is ignored, and the page you have defined in the pages folder is retained`;
-  console.error(msg);
+  console.error('Error:' + msg);
   return true;
 }
 /**
@@ -126,7 +122,7 @@ class Gen {
 
   constructor(
     private template: PageTemplate,
-    private form: Form
+    private form: Form,
   ) {}
   generate(): Page {
     this.inputParams = {};
@@ -164,7 +160,7 @@ class Gen {
         return this.doView();
       default:
         throw new Error(
-          `Page template ${this.template.name} is of type ${this.template.type}.  No page generator is designed for this type.`
+          `Page template ${this.template.name} is of type ${this.template.type}.  No page generator is designed for this type.`,
         );
     }
   }
@@ -254,7 +250,7 @@ class Gen {
   private addButtonAndAction(
     btn: MenuButton | undefined,
     actionName: string,
-    params: Values
+    params: Values,
   ) {
     if (!btn) {
       return;
@@ -281,7 +277,7 @@ class Gen {
   private getChildArray(
     names: string[] | undefined,
     hiddenFields: { [key: string]: true } | undefined,
-    isEditable?: boolean
+    isEditable?: boolean,
   ): DataField[] {
     const children: DataField[] = [];
     if (names === undefined) {
@@ -294,8 +290,8 @@ class Gen {
       }
       const ff = this.form.fields[nam];
       if (!ff) {
-        console.warn(
-          `${nam} is declared as a field but it is not found in the form`
+        console.error(
+          `Error: ${nam} is declared as a field but it is not found in the form`,
         );
         continue;
       }
@@ -314,7 +310,7 @@ class Gen {
 
   private getColumnDetails(
     names: string[] | undefined,
-    hiddenFields?: { [key: string]: true }
+    hiddenFields?: { [key: string]: true },
   ): ValueRenderingDetails[] {
     const details: ValueRenderingDetails[] = [];
     if (names === undefined || names.length == 0) {
@@ -327,8 +323,8 @@ class Gen {
       }
       const ff = this.form.fields[name];
       if (!ff) {
-        console.warn(
-          `${name} is declared as a field but it is not found in the form`
+        console.error(
+          `Error: ${name} is declared as a field but it is not found in the form`,
         );
         continue;
       }
@@ -502,7 +498,7 @@ class Gen {
       type: 'form',
       formOperation: 'filter',
       formName: t.formName,
-      childName: 'itemsList',
+      targetTableName: 'itemsList',
       filterFields: t.filterFields,
     };
 
@@ -534,7 +530,7 @@ class Gen {
     }
 
     const columns: ValueRenderingDetails[] = this.getColumnDetails(
-      t.columnNames
+      t.columnNames,
     );
 
     const children: (Panel | TableViewer)[] = [];

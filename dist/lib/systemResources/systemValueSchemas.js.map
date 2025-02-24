@@ -1,0 +1,1 @@
+{"version":3,"file":"systemValueSchemas.js","sourceRoot":"","sources":["../../../src/lib/systemResources/systemValueSchemas.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,MAAM,kBAAkB,GAA2B;IACxD,KAAK,EAAE;QACL,IAAI,EAAE,OAAO;QACb,SAAS,EAAE,MAAM;QACjB,SAAS,EAAE,EAAE;QACb,WAAW,EAAE,cAAc;KAC5B;CACF,CAAC"}

@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.systemMessages = void 0;
-exports.systemMessages = {
+export const systemMessages = {
     _internalError: "An error was encountered while processing the request. An alert has been raised for the support team to look into this. You may try again to see if the error was due to some transient situations",
     _notAuthorized: "This operation requires proper credentials",
     _concurrentUpdate: "This data was concurrently modified by some one else. Please review the revised data before modifying it again",
@@ -25,4 +22,4 @@ exports.systemMessages = {
     _invalidName: "Name may have a max of 50 characters",
     _missingSchema: "Unable to validate this field because a value schema by name ${1} is missing",
 };
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3lzdGVtTWVzc2FnZXMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9zcmMvbGliL3N5c3RlbVJlc291cmNlcy9zeXN0ZW1NZXNzYWdlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFJYSxRQUFBLGNBQWMsR0FBRztJQUM1QixjQUFjLEVBQ1osb01BQW9NO0lBQ3RNLGNBQWMsRUFBRSw0Q0FBNEM7SUFDNUQsaUJBQWlCLEVBQ2YsZ0hBQWdIO0lBQ2xILFlBQVksRUFBRSxrQkFBa0I7SUFDaEMsVUFBVSxFQUFFLHNDQUFzQztJQUNsRCxVQUFVLEVBQUUsa0NBQWtDO0lBQzlDLFNBQVMsRUFBRSxtQ0FBbUM7SUFDOUMsU0FBUyxFQUFFLDJCQUEyQjtJQUN0QyxpQkFBaUIsRUFBRSxxREFBcUQ7SUFDeEUsWUFBWSxFQUFFLGlEQUFpRDtJQUMvRCxjQUFjLEVBQUUsb0JBQW9CO0lBQ3BDLGFBQWEsRUFBRSxtQ0FBbUM7SUFDbEQsV0FBVyxFQUFFLGlDQUFpQztJQUM5QyxlQUFlLEVBQUUsZ0NBQWdDO0lBQ2pELFlBQVksRUFBRSxtQ0FBbUM7SUFDakQsY0FBYyxFQUFFLHFCQUFxQjtJQUNyQyxpQkFBaUIsRUFBRSwyQ0FBMkM7SUFDOUQsa0JBQWtCLEVBQUUsc0RBQXNEO0lBQzFFLHFCQUFxQixFQUNuQiw4SEFBOEg7SUFDaEksYUFBYSxFQUFFLHlCQUF5QjtJQUN4QyxZQUFZLEVBQUUsc0NBQXNDO0lBQ3BELGNBQWMsRUFDWiw4RUFBOEU7Q0FDeEUsQ0FBQyJ9
+//# sourceMappingURL=systemMessages.js.map

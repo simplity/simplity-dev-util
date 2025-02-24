@@ -26,6 +26,7 @@ import {
   FieldType,
   TableViewer,
   TableEditor,
+  LeafComponent,
 } from 'simplity-types';
 import { generatePage } from './generatePage';
 import { alterPage } from './alterPage';
@@ -190,12 +191,14 @@ function processComponents(
    * 10. pages.ts from /template/*.ts and alter /pageAlterations
    */
   const pages = appComps.pages || {};
-  const n = modifyPanels(pages, forms);
+  const n = processPages(pages, forms);
   if (n > 0) {
     console.error(
-      `\n\n${n} ERROR: errors found in the pages. Generated Pages may not be usable!!`
+      `${n} Error: errors found in the pages. Generated Pages may not be usable!!`
     );
+    process.exit(1);
   }
+
   generatePages(
     appComps.templates || {},
     appComps.pageAlterations || {},
@@ -205,8 +208,8 @@ function processComponents(
   writeAll(pages, tsFolder, 'Page', 'pages');
 }
 
-function done(fileName: string): void {
-  console.info(`file ${fileName} created.`);
+function done(_fileName: string): void {
+  //console.info(`file ${fileName} created.`);
 }
 
 function organizeRecords(comps: AllRecords): void {
@@ -255,7 +258,7 @@ function toSimpleRecord(
   const mainRecordName = record.mainRecordName;
   if (recordName === mainRecordName) {
     console.error(
-      `ERROR: Extended ${recordName} has set itself as its mainRecord!! `
+      `Error: Extended ${recordName} has set itself as its mainRecord!! `
     );
     comps.wrongOnes[recordName] = true;
     return undefined;
@@ -265,7 +268,7 @@ function toSimpleRecord(
   const idx = dependencies.indexOf(recordName);
   if (idx !== -1) {
     console.error(
-      `ERROR: Record ${recordName} is an extended record, but has a cyclical/recursive dependency on itself`
+      `Error: Record ${recordName} is an extended record, but has a cyclical/recursive dependency on itself`
     );
     const t = dependencies.slice(idx);
     t.push(recordName);
@@ -280,7 +283,7 @@ function toSimpleRecord(
     mainRecord = comps.all[mainRecordName];
     if (mainRecord === undefined) {
       console.error(
-        `Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that record is not defined`
+        `Error: Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that record is not defined`
       );
 
       comps.wrongOnes[recordName] = true;
@@ -289,7 +292,7 @@ function toSimpleRecord(
 
     if (mainRecord.recordType === 'composite') {
       console.error(
-        `Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that is a form/composite-record`
+        `Error: Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that is a form/composite-record`
       );
 
       comps.wrongOnes[recordName] = true;
@@ -357,7 +360,7 @@ function extendIt(
       const field = refFields[fieldName];
       if (!field) {
         console.error(
-          `ERROR: Extended record ${recordToExtend.name} specifies ${fieldName} as a reference field but that field is not defined in the reference record ${ref.name}. Field skipped`
+          `Error: Extended record ${recordToExtend.name} specifies ${fieldName} as a reference field but that field is not defined in the reference record ${ref.name}. Field skipped`
         );
         return undefined;
       }
@@ -418,7 +421,7 @@ function writeJsons(
   for (const [name, comp] of Object.entries(comps)) {
     if (name !== comp.name!) {
       console.error(
-        `Component with name='${comp.name}' is indexed with key='${name}. This is incorrect. Name should match the indexed-key to ensure that the name is unique across all records\n json NOT created for this record`
+        `Error: Component with name='${comp.name}' is indexed with key='${name}. This is incorrect. Name should match the indexed-key to ensure that the name is unique across all records\n json NOT created for this record`
       );
       continue;
     }
@@ -465,8 +468,8 @@ function generateListSources(
 function generateForms(comps: AllRecords, forms: StringMap<Form>) {
   for (const [name, record] of Object.entries(comps.all)) {
     if (!record.isVisibleToClient) {
-      console.info(
-        `Record ${name} is not visible to the client-side. Form not created.`
+      console.warn(
+        `Warning: Record ${name} is not visible to the client-side. Form not created.`
       );
       continue;
     }
@@ -484,7 +487,7 @@ function generateForms(comps: AllRecords, forms: StringMap<Form>) {
 
       if (ref === undefined) {
         console.error(
-          `Composite/extended Record "${name}" has mainRecord="${cr.mainRecordName}" but that record is not defined, or is a composite-record. Source NOT generated`
+          `Error: Composite/extended Record "${name}" has mainRecord="${cr.mainRecordName}" but that record is not defined, or is a composite-record. Source NOT generated`
         );
         continue;
       }
@@ -642,16 +645,25 @@ function getRenderAs(field: Field, valueType: ValueType): FieldRendering {
  * go through pages, alert any errors, and expand fields in a panel if required before copying it the new collection
  * @param pages
  */
-function modifyPanels(pages: StringMap<Page>, forms: StringMap<Form>): number {
+function processPages(pages: StringMap<Page>, forms: StringMap<Form>): number {
   let n = 0;
   for (const page of Object.values(pages)) {
-    const form = page.formName ? forms[page.formName] : undefined;
-    n += modifyPanel(page.dataPanel, form, forms, page.name);
+    let form: Form | undefined;
+    if (page.formName) {
+      form = forms[page.formName];
+      if (!form) {
+        console.error(
+          `Error: Page '${page.name}: Form ${page.formName} is not a valid form name`
+        );
+        n++;
+      }
+    }
+    n += processPanel(page.dataPanel, form, forms, page.name);
   }
   return n;
 }
 
-function modifyPanel(
+function processPanel(
   panel: Panel,
   form: Form | undefined,
   forms: StringMap<Form>,
@@ -663,9 +675,9 @@ function modifyPanel(
     form = forms[panel.childFormName];
     if (!form) {
       console.error(
-        `Page '${pageName}': Panel ${panel.name} refers to form '${panel.childFormName}' but that form is not defined`
+        `Error: Page '${pageName}': Panel ${panel.name} refers to form '${panel.childFormName}' but that form is not defined`
       );
-      return 1;
+      n++;
     }
   }
 
@@ -674,7 +686,7 @@ function modifyPanel(
   if (panel.fieldNames) {
     if (!form) {
       console.error(
-        `Page '${pageName}': Panel ${panel.name} defines fieldName, but no form is associated with this page.`
+        `Error: Page '${pageName}': Panel ${panel.name} defines fieldName, but no form is associated with this page.`
       );
       return 1;
     }
@@ -686,7 +698,7 @@ function modifyPanel(
         children.push(f);
       } else {
         console.error(
-          `Page ${pageName}: Panel ${panel.name} specifies '${fieldName}' as one of the fields but that field is not defined in the associated form '${form!.name}' `
+          `Error: Page ${pageName}: Panel ${panel.name} specifies '${fieldName}' as one of the fields but that field is not defined in the associated form '${form!.name}' `
         );
         n++;
       }
@@ -703,13 +715,13 @@ function modifyPanel(
             children.push({ ...f, ...child, compType: 'field' });
           } else {
             console.error(
-              `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but that field is not defined in the associated form '${form.name}' `
+              `Error: Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but that field is not defined in the associated form '${form.name}' `
             );
             n++;
           }
         } else {
           console.error(
-            `Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but no form is associated with this page.`
+            `Error: Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but no form is associated with this page.`
           );
           n++;
         }
@@ -719,12 +731,13 @@ function modifyPanel(
       children.push(child);
 
       if (child.compType === 'panel') {
-        n += modifyPanel(child as Panel, form, forms, pageName);
+        n += processPanel(child as Panel, form, forms, pageName);
         continue;
       }
       if (child.compType === 'table') {
-        const form = child.formName ? forms[child.formName] : undefined;
-        n += modifyTable(child as TableViewer | TableEditor, form);
+        const table = child as TableEditor | TableViewer;
+        const form = table.formName ? forms[table.formName] : undefined;
+        n += processTable(table as TableEditor, form, pageName);
       }
     }
   }
@@ -732,15 +745,55 @@ function modifyPanel(
   return n;
 }
 
-function modifyTable(
-  table: TableViewer | TableEditor,
-  form: Form | undefined
+function processTable(
+  table: TableEditor | TableViewer,
+  form: Form | undefined,
+  pageName: string
 ): number {
-  let n = 0;
-  const children = table.children;
-  if (!children || !children.length) {
+  const hasColumns = !table.editable && !!table.columns;
+  let children = table.children;
+  if (children && children.length) {
+    if (hasColumns) {
+      console.warn(
+        `Warning: Page: ${pageName} Table '${table.name}': Both children and columns are specified. Columns ignored.`
+      );
+    }
+    return processFields(children, form, pageName);
+  }
+
+  if (hasColumns) {
     return 0;
   }
+
+  if (!form) {
+    console.error(
+      `Error: Page: ${pageName} Table '${table.name}': Neither formName nor children/columns specified. Table must have at least one child/column`
+    );
+    return 1;
+  }
+
+  /**
+   * all fields from the form are to be treated as children
+   */
+  children = [];
+  for (const fieldName of form.fieldNames) {
+    const field = form.fields[fieldName];
+    children.push({ ...field, compType: 'field' });
+  }
+
+  table.children = children;
+  return 0;
+}
+
+function processFields(
+  children: LeafComponent[],
+  form: Form | undefined,
+  pageName: string
+): number {
+  /**
+   * take care of any referred fields
+   */
+  let n = 0;
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
     if (child.compType !== 'referred') {
@@ -748,7 +801,7 @@ function modifyTable(
     }
     if (!form) {
       console.error(
-        `Field ${child.name} is a referred field, but the page or the enclosing panel does not specify a form`
+        `Error: Page: ${pageName} Field ${child.name} is a referred field, but the page or the enclosing panel does not specify a form`
       );
       n++;
       continue;
@@ -761,12 +814,13 @@ function modifyTable(
     }
 
     console.error(
-      `Field ${child.name} is a referred field, but the form ${form.name} has no field with that name`
+      `Error: Page: ${pageName} Field ${child.name} is a referred field, but the form ${form.name} has no field with that name`
     );
     n++;
   }
   return n;
 }
+
 /**
  * generated pages are written to a separate folder, and the run time system uses these generated pages rather than the ones written by the programmer
  */
@@ -779,11 +833,11 @@ function generatePages(
   for (const [name, template] of Object.entries(templates)) {
     const form = forms[template.formName];
     if (form) {
-      const n = generatePage(template, form, pages);
-      console.info(`page template ${name} processed to generate ${n} page/s`);
+      generatePage(template, form, pages);
+      //console.info(`page template ${name} processed to generate ${n} page/s`);
     } else {
       console.error(
-        `template ${template} requires form ${template.formName}, but that form is not found`
+        `Error: Template ${name}:  Form ${template.formName} is not defined`
       );
     }
   }
@@ -792,10 +846,10 @@ function generatePages(
     const page = pages[name];
     if (page) {
       alterPage(page, alts);
-      console.info(`page ${name} altered`);
+      //console.info(`page ${name} altered`);
     } else {
       console.error(
-        `Alterations found for ${name} but the page is not found. Alterations skipped`
+        `Error: Alteration for Page ${name}:  Alterations specified, but that page is not defined`
       );
     }
   }
@@ -848,13 +902,13 @@ export function checkValueLists(lists: StringMap<ValueList>): number {
   let n = 0;
   for (const [name, list] of Object.entries(lists)) {
     if (name === '') {
-      console.error(`EMpty string as name found in file valueLists.ts.`);
+      console.error(`Error: Empty string as name found in file valueLists.ts.`);
       n++;
     }
 
     if (name !== list.name) {
       console.error(
-        `Value list with name='${list.name}' is indexed as '${name}' in the file valueLists.ts. Value list must be indexed as its name`
+        `Error: Value list with name='${list.name}' is indexed as '${name}' in the file valueLists.ts. Value list must be indexed as its name`
       );
       n++;
     }
