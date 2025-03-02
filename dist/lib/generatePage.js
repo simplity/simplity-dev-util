@@ -115,7 +115,6 @@ class Gen {
                 type: 'form',
                 formOperation: 'get',
                 formName: t.formName,
-                params: this.keyParams,
             },
             close: {
                 name: 'close',
@@ -200,7 +199,7 @@ class Gen {
             name: actionName,
             type: 'navigation',
             menuItem: btn.menuItem,
-            params,
+            pageParameters: params,
         };
         this.actions[actionName] = a;
     }
@@ -298,7 +297,6 @@ class Gen {
                 type: 'form',
                 formOperation: 'get',
                 formName: t.formName,
-                params: this.keyParams,
             },
             save: {
                 name: 'save',
@@ -403,7 +401,7 @@ class Gen {
             formOperation: 'filter',
             formName: t.formName,
             targetTableName: 'itemsList',
-            filterFields: t.filterFields,
+            filters: t.filters,
         };
         if (t.onRowClickMenu) {
             this.addNavAction(t.onRowClickMenu, this.allParams);
@@ -448,7 +446,7 @@ class Gen {
             name: t.name,
             titlePrefix: t.label,
             serveGuests: this.form.serveGuests,
-            onLoadActions: t.filterFields || t.allowConfiguration ? undefined : ['filter'],
+            onLoadActions: t.filters || t.allowConfiguration ? undefined : ['filter'],
             actions: this.actions,
             middleButtons: this.buttons,
             hideModules: false,
@@ -518,7 +516,7 @@ class Gen {
             formName: t.formName,
             titlePrefix: t.label,
             serveGuests: this.form.serveGuests,
-            onLoadActions: t.filterFields ? undefined : ['getData'],
+            onLoadActions: t.filters ? undefined : ['getData'],
             actions: this.actions,
             middleButtons: this.buttons,
             hideModules: false,
@@ -535,7 +533,7 @@ class Gen {
             type: 'navigation',
             name,
             menuItem: name,
-            params,
+            pageParameters: params,
         };
     }
 }
@@ -547,7 +545,7 @@ function toListPage(master) {
         label: master.label + ' List',
         columnNames: master.columnNames,
         additionalInputParams: master.additionalInputParams,
-        filterFields: master.filterFields,
+        filters: master.filters,
         /**
          * TODO: convert this to the vertical dots notation
          */

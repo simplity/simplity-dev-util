@@ -1,0 +1,50 @@
+/**
+ * generate ts files to export the design components created in the designated folders
+ */
+
+import { readdirSync } from 'fs';
+import path from 'path';
+
+function exportPages(folder: string) {
+  const imports = [`import { Page, StringMap } from 'simplity-types';`];
+  const pages = [`export const pages: StringMap<Page> = {`];
+  let currentFolder = folder;
+}
+
+function processFiles(
+  dirPath: string,
+  ext: string,
+  prefix: string,
+  imports: string[],
+  exports: string[],
+): void {
+  try {
+    const items = readdirSync(dirPath, { withFileTypes: true });
+
+    for (const item of items) {
+      const itemName = item.name;
+      if (item.isDirectory()) {
+        processFiles(
+          dirPath + '/' + itemName,
+          ext,
+          prefix + itemName + '/',
+          imports,
+          exports,
+        );
+        continue;
+      }
+      if (itemName.endsWith(ext)) {
+        continue;
+      }
+      const importName =
+        prefix + itemName.substring(0, itemName.lastIndexOf(ext));
+      const name = itemName.substring(0, itemName.indexOf('.'));
+      imports.push(
+        'import { ' + name + " } from '" + prefix + importName + "';",
+      );
+      exports.push(name + ',');
+    }
+  } catch (error) {
+    console.error(`Error reading directory ${dirPath}:`, error);
+  }
+}
