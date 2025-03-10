@@ -219,7 +219,12 @@ class Gen {
             }
             if (ff.renderAs && ff.renderAs !== 'hidden') {
                 const field = { ...ff };
-                if (!isEditable) {
+                if (isEditable) {
+                    if (!field.renderAs) {
+                        field.renderAs = 'text-field';
+                    }
+                }
+                else {
                     field.renderAs = ff.listName ? 'select-output' : 'output';
                 }
                 children.push(field);

@@ -564,8 +564,8 @@ function processTable(table, form, pageName) {
         return 0;
     }
     if (!form) {
-        console.error(`Error: Page: ${pageName} Table '${table.name}': Neither formName nor children/columns specified. Table must have at least one child/column`);
-        return 1;
+        console.warn(`Warn: Page: ${pageName} Table '${table.name}': Neither formName nor children/columns specified. Field names will be used as column headers.`);
+        return 0;
     }
     /**
      * all fields from the form are to be treated as children
