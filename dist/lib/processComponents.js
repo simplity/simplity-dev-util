@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import { generatePage } from './generatePage';
 import { alterPage } from './alterPage';
+import { generatePage } from './generatePage';
 import { systemResources } from './systemResources';
 export const devUtil = {
     /**
@@ -498,7 +498,7 @@ function processPanel(panel, form, forms, pageName) {
         }
     }
     const children = [];
-    // start with any fields selected from the associated form
+    // start with fields selected from the associated form
     if (panel.fieldNames) {
         if (!form) {
             console.error(`Error: Page '${pageName}': Panel ${panel.name} defines fieldName, but no form is associated with this page.`);
@@ -519,24 +519,32 @@ function processPanel(panel, form, forms, pageName) {
     if (panel.children) {
         for (const child of panel.children) {
             if (child.compType === 'referred') {
-                if (form) {
-                    const f = form.fields[child.name];
-                    if (f) {
-                        //we start with the form field, override with whatever is specified by this child, and then restore the compType to 'field'
-                        children.push({ ...f, ...child, compType: 'field' });
-                    }
-                    else {
-                        console.error(`Error: Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but that field is not defined in the associated form '${form.name}' `);
-                        n++;
-                    }
+                const f = processRefField(child, form);
+                if (f) {
+                    children.push(f);
                 }
                 else {
-                    console.error(`Error: Page: ${pageName}: Panel ${panel.name} specifies '${child.name}' as a referred field but no form is associated with this page.`);
                     n++;
                 }
                 continue;
             }
             children.push(child);
+            if (child.compType === 'range') {
+                const range = child;
+                for (const leftOrRight of ['fromField', 'toField']) {
+                    let field = range[leftOrRight];
+                    if (field.compType === 'referred') {
+                        const f = processRefField(field, form);
+                        if (f) {
+                            range[leftOrRight] = f;
+                        }
+                        else {
+                            n++;
+                        }
+                    }
+                }
+                continue;
+            }
             if (child.compType === 'panel') {
                 n += processPanel(child, form, forms, pageName);
                 continue;
@@ -550,6 +558,18 @@ function processPanel(panel, form, forms, pageName) {
     }
     panel.children = children;
     return n;
+}
+function processRefField(field, form) {
+    if (!form) {
+        console.error(`Error: Field: ${field.name}: This is a referred field, but there is no applicable form.`);
+        return undefined;
+    }
+    const f = form.fields[field.name];
+    if (f) {
+        return { ...f, ...field, compType: 'field' };
+    }
+    console.error(`Error: Field: ${field.name}: This is a referred field, but the applicable form '${form.name}' has no such field.`);
+    return undefined;
 }
 function processTable(table, form, pageName) {
     const hasColumns = !table.editable && !!table.columns;
