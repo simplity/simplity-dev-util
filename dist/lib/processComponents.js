@@ -572,31 +572,97 @@ function processRefField(field, form) {
     return undefined;
 }
 function processTable(table, form, pageName) {
-    const hasColumns = !table.editable && !!table.columns;
-    let children = table.children;
-    if (children && children.length) {
-        if (hasColumns) {
-            console.warn(`Warning: Page: ${pageName} Table '${table.name}': Both children and columns are specified. Columns ignored.`);
+    if (!table.editable && table.columns) {
+        if (table.children?.length) {
+            console.error(`Error: Page: ${pageName} Table '${table.name}': Both children and columns are specified. Columns ignored.`);
+            return 1;
         }
-        return processFields(children, form, pageName);
-    }
-    if (hasColumns) {
+        //nothing to process
         return 0;
     }
-    if (!form) {
-        console.warn(`Warn: Page: ${pageName} Table '${table.name}': Neither formName nor children/columns specified. Field names will be used as column headers.`);
+    let children = table.children;
+    if (children && children.length) {
+        const n = processFields(children, form, pageName);
+        if (n > 0) {
+            return n;
+        }
+    }
+    else if (form) {
+        children = [];
+        for (const fieldName of form.fieldNames) {
+            const field = form.fields[fieldName];
+            children.push({ ...field, compType: 'field' });
+        }
+        table.children = children;
+    }
+    else {
+        if (table.editable) {
+            console.error(`Error:  Page: ${pageName} Table '${table.name}' is editable. Editable table should either specify child-components or a form`);
+            return 1;
+        }
+        console.warn(`Warn: Page: ${pageName} Table '${table.name}': Data will be rendered dynamically based on the columns received at run time.`);
         return 0;
     }
     /**
-     * all fields from the form are to be treated as children
+     * table viewer is optimized for read-only by converting comps into ColumnDetails
      */
-    children = [];
-    for (const fieldName of form.fieldNames) {
-        const field = form.fields[fieldName];
-        children.push({ ...field, compType: 'field' });
+    if (!table.editable) {
+        table.columns = compsToCols(children);
+        delete table.children;
     }
-    table.children = children;
     return 0;
+}
+function compsToCols(comps) {
+    const cols = [];
+    for (const comp of comps) {
+        if (comp.compType === 'field' || comp.compType === 'referred') {
+            const col = fieldToCol(comp);
+            if (col) {
+                cols.push(col);
+            }
+            continue;
+        }
+        if (comp.compType === 'range') {
+            const r = comp;
+            for (const f of [r.fromField, r.toField]) {
+                const col = fieldToCol(f);
+                if (col) {
+                    cols.push(col);
+                }
+            }
+            continue;
+        }
+        cols.push({
+            name: comp.name,
+            valueType: 'text',
+            label: comp.label || toLabel(comp.name),
+            comp,
+        });
+    }
+    return cols;
+}
+function fieldToCol(field) {
+    if (field.renderAs === 'hidden' || field.hideInList) {
+        return undefined;
+    }
+    const col = {
+        name: field.name,
+        label: field.label || toLabel(field.name),
+        valueType: field.valueType,
+        valueFormatter: field.valueFormatter,
+        onClick: field.onClick,
+    };
+    if (field.listOptions) {
+        col.valueList = toMap(field.listOptions);
+    }
+    return col;
+}
+function toMap(arr) {
+    const map = {};
+    for (const { label, value } of arr) {
+        map[value] = label;
+    }
+    return map;
 }
 function processFields(children, form, pageName) {
     /**
@@ -691,5 +757,36 @@ export function checkValueLists(lists) {
         }
     }
     return n;
+}
+function toLabel(name) {
+    if (!name) {
+        return '';
+    }
+    const firstChar = name.charAt(0).toUpperCase();
+    const n = name.length;
+    if (n === 1) {
+        return firstChar;
+    }
+    const text = firstChar + name.substring(1);
+    let label = '';
+    /**
+     * we have ensure that the first character is upper case.
+     * hence the loop will end after adding all the words when we come from the end
+     */
+    let lastAt = n;
+    for (let i = n - 1; i >= 0; i--) {
+        const c = text.charAt(i);
+        if (c >= 'A' && c <= 'Z') {
+            const part = text.substring(i, lastAt);
+            if (label) {
+                label = part + ' ' + label;
+            }
+            else {
+                label = part;
+            }
+            lastAt = i;
+        }
+    }
+    return label;
 }
 //# sourceMappingURL=processComponents.js.map

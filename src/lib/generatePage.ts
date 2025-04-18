@@ -22,7 +22,7 @@ import {
   SavePage,
   ViewPage,
   TableEditor,
-  ValueRenderingDetails,
+  ColumnDetails,
 } from 'simplity-types';
 
 export function generatePage(
@@ -314,8 +314,8 @@ class Gen {
   private getColumnDetails(
     names: string[] | undefined,
     hiddenFields?: { [key: string]: true },
-  ): ValueRenderingDetails[] {
-    const details: ValueRenderingDetails[] = [];
+  ): ColumnDetails[] {
+    const details: ColumnDetails[] = [];
     if (names === undefined || names.length == 0) {
       return this.getAllColumnDetails();
     }
@@ -332,7 +332,7 @@ class Gen {
         continue;
       }
       if (ff.renderAs && ff.renderAs !== 'hidden') {
-        const d: ValueRenderingDetails = {
+        const d: ColumnDetails = {
           name,
           label: ff.label || ff.name,
           valueType: ff.valueType,
@@ -345,11 +345,11 @@ class Gen {
   }
 
   private getAllColumnDetails() {
-    const details: ValueRenderingDetails[] = [];
+    const details: ColumnDetails[] = [];
 
     for (const [name, ff] of Object.entries(this.form.fields)) {
       if (ff.renderAs && ff.renderAs !== 'hidden') {
-        const d: ValueRenderingDetails = {
+        const d: ColumnDetails = {
           name,
           label: ff.label || ff.name,
           valueType: ff.valueType,
@@ -531,9 +531,7 @@ class Gen {
       });
     }
 
-    const columns: ValueRenderingDetails[] = this.getColumnDetails(
-      t.columnNames,
-    );
+    const columns: ColumnDetails[] = this.getColumnDetails(t.columnNames);
 
     const children: (Panel | TableViewer)[] = [];
     children.push({
