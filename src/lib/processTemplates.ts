@@ -24,53 +24,85 @@ import {
   TableEditor,
   ColumnDetails,
 } from 'simplity-types';
+/**
+ * Processes the templates to generate pages.
+ * @param templates The templates to process.
+ * @param forms The forms to use for generating pages.
+ * @param pages The pages to populate with generated content.
+ */
+export function processTemplates(
+  templates: StringMap<PageTemplate>,
+  forms: StringMap<Form>,
+  pages: StringMap<Page>,
+): number {
+  let nbrErrors = 0;
+  for (const [name, template] of Object.entries(templates)) {
+    const form = forms[template.formName];
+    if (form) {
+      nbrErrors += templateToPages(template, form, pages);
+      //console.info(`page template ${name} processed to generate ${n} page/s`);
+    } else {
+      console.error(
+        `Error: Template ${name}:  Form ${template.formName} is not defined`,
+      );
+      nbrErrors++;
+    }
+  }
+  return nbrErrors;
+}
 
-export function generatePage(
+function templateToPages(
   template: PageTemplate,
   form: Form,
   pages: StringMap<Page>,
 ): number {
   const templateName = template.name;
-  let nbr = 0;
+  let nbrErrors = 0;
   if (template.type === 'master') {
     //generate and add list, view and save pages
 
     let pageName = templateName + 'List';
-    if (pageExists(pageName, pages, templateName) === false) {
-      pages[pageName] = new Gen(
+    if (pageExists(pageName, pages, templateName)) {
+      nbrErrors++;
+    } else {
+      [pages[pageName], nbrErrors] = new Gen(
         toListPage(template as MasterPage),
         form,
       ).generate();
-      nbr++;
     }
 
     pageName = templateName + 'View';
-    if (pageExists(pageName, pages, templateName) === false) {
-      pages[pageName] = new Gen(
+    if (pageExists(pageName, pages, templateName)) {
+      nbrErrors++;
+    } else {
+      [pages[pageName], nbrErrors] = new Gen(
         toViewPage(template as MasterPage),
         form,
       ).generate();
-      nbr++;
     }
 
     pageName = templateName + 'Save';
-    if (pageExists(pageName, pages, templateName) === false) {
-      pages[pageName] = new Gen(
+    if (pageExists(pageName, pages, templateName)) {
+      nbrErrors++;
+    } else {
+      [pages[pageName], nbrErrors] = new Gen(
         toSavePage(template as MasterPage),
         form,
       ).generate();
-      nbr++;
     }
 
-    return nbr;
+    return nbrErrors;
   }
 
+  /**
+   * is it already done?
+   */
   if (pageExists(templateName, pages)) {
-    return 0;
+    return 1;
   }
 
-  pages[templateName] = new Gen(template, form).generate();
-  return 1;
+  [pages[templateName], nbrErrors] = new Gen(template, form).generate();
+  return nbrErrors;
 }
 
 function pageExists(
@@ -119,12 +151,13 @@ class Gen {
   private keyParams: StringMap<boolean> = {};
   private actions: { [key: string]: Action } = {};
   private buttons: Button[] = [];
+  private nbrErrors = 0;
 
   constructor(
     private template: PageTemplate,
     private form: Form,
   ) {}
-  generate(): Page {
+  generate(): [Page, number] {
     this.inputParams = {};
     this.allParams = {};
     this.addParams = {};
@@ -149,21 +182,28 @@ class Gen {
     this.actions = {};
     this.buttons = [];
 
+    let page: Page | undefined;
     switch (this.template.type) {
       case 'list':
-        return this.doList();
+        page = this.doList();
+        break;
       case 'grid':
-        return this.doGrid();
+        page = this.doGrid();
+        break;
       case 'save':
-        return this.doSave();
+        page = this.doSave();
+        break;
       case 'view':
-        return this.doView();
+        page = this.doView();
+        break;
       default:
         throw new Error(
           `Page template ${this.template.name} is of type ${this.template.type}.  No page generator is designed for this type.`,
         );
     }
+    return [page, this.nbrErrors];
   }
+
   private doView(): Page {
     const t = this.template as ViewPage;
 
@@ -292,6 +332,7 @@ class Gen {
         console.error(
           `Error: ${nam} is declared as a field but it is not found in the form`,
         );
+        this.nbrErrors++;
         continue;
       }
       if (ff.renderAs && ff.renderAs !== 'hidden') {
@@ -329,6 +370,7 @@ class Gen {
         console.error(
           `Error: ${name} is declared as a field but it is not found in the form`,
         );
+        this.nbrErrors++;
         continue;
       }
       if (ff.renderAs && ff.renderAs !== 'hidden') {

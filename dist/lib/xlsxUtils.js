@@ -18,13 +18,8 @@ const EMIT_AS_TREE = {
 };
 const MAIN_ATTRS = [
     'name',
-    'appParams',
-    'imageBasePath',
     'loginServiceName',
     'logoutServiceName',
-    'serverUrl',
-    'startingLayout',
-    'startingModule',
     'tenantFieldName',
     'tenantNameInDb',
     'maxLengthForTextField',
@@ -41,7 +36,6 @@ const MAIN_ATTRS = [
     'valueSchemas',
 ];
 const GROUP_ATTRS = [
-    'cachedResponses',
     'pages',
     'records',
     'sqls',

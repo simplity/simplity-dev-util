@@ -129,7 +129,7 @@ export function alterPage(page: Page, alts: PageAlteration): void {
 function alterChildren(
   parent: ContainerComponent,
   alts: PageAlteration,
-  nbrTasks: number
+  nbrTasks: number,
 ): number {
   const parentName = parent.name;
   const comps: PageComponent[] = [];
@@ -146,7 +146,7 @@ function alterChildren(
     if (toDelete) {
       if (anUpdate) {
         console.warn(
-          `Warning: Element ${parentName} specifies that its child element ${childName} be altered, but it also specifies that it should be deleted. deletion command ignored.`
+          `Warning: Element ${parentName} specifies that its child element ${childName} be altered, but it also specifies that it should be deleted. deletion command ignored.`,
         );
         nbrTasks--;
       } else {

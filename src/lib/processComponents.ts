@@ -1,40 +1,37 @@
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import {
-  AppDesign,
-  ChildForm,
-  ChildRecord,
   ColumnDetails,
-  CompositeRecord,
   DataField,
-  ExtendedRecord,
   Field,
-  FieldRendering,
-  FieldType,
   FixedKeyedList,
   FixedList,
   Form,
+  GeneratorInput,
   LeafComponent,
   ListSource,
   Page,
   PageAlteration,
   PageComponent,
-  PageTemplate,
   Panel,
   RangePanel,
-  Record,
   ReferredField,
   SimpleList,
-  SimpleRecord,
   StringMap,
   TableEditor,
   TableViewer,
-  ValidFormOperations,
   ValueList,
-  ValueType,
 } from 'simplity-types';
 import { alterPage } from './alterPage';
-import { generatePage } from './generatePage';
+import { processTemplates } from './processTemplates';
 import { systemResources } from './systemResources';
+import { generateForms } from './generateForms';
+import { processRecords } from './processRecords';
+
+export type DevFolders = {
+  json: string;
+  ts: string;
+  types: string;
+};
 
 /**
  * attributes for application.json
@@ -46,66 +43,62 @@ type AppJson = {
   tenantNameInDb?: string;
 };
 
-type AllRecords = {
-  all: StringMap<Record>;
-  /**
-   * simple/extended records
-   */
-  simpleRecords: StringMap<SimpleRecord>;
-  /**
-   * composite Records: called as clientForm by the server
-   */
-  forms: StringMap<CompositeRecord>;
-  /**
-   * names of extended records that failed the conversion process
-   */
-  wrongOnes: StringMap<true>;
-};
-export const devUtil = {
-  /**
-   * process the design components to generate derived components for the server as well as the client
-   * 1. JSOn files are created for the server side.
-   * 2. ts files for ListSources are generated for the client-side
-   * 3. ts files for Form are generated for the client-side
-   * 4. pages are generated, and altered if required, for all the templates.
-   * @param appDesign all the input for processing
-   * @param jsonFolder where the json files are to be written out.
-   * The folder is emptied before writing out generated JSONs.
-   * @param tsFolder where typescript files are written out.
-   * The folder is emptied before writing out generated ts files.
-   *
-   */
-  processComponents,
+/**
+ * most of our components have an attribute named 'name', and it is indexed into the collection with that name.
+ */
+type NamedObject = {
+  name: string;
+  [key: string]: any;
 };
 
-function processComponents(
-  appComps: AppDesign,
+export function processComponents(
+  appDesign: GeneratorInput,
   jsonFolder: string,
   tsFolder: string,
 ) {
+  let nbrErrors = 0;
   /**
-   * clean-p folders that we are going to generate to
+   * check if all our named-components have the right name
    */
-  rmSync(jsonFolder, { recursive: true, force: true });
-  mkdirSync(jsonFolder);
+  const records = appDesign.records || {};
+  const pages = appDesign.pages || {};
+  const templates = appDesign.templates || {};
+  const alters = appDesign.alters || {};
+  const valueLists = appDesign.valueLists || {};
+  const valueSchemas = appDesign.valueSchemas || {};
 
-  rmSync(tsFolder, { recursive: true, force: true });
-  mkdirSync(tsFolder);
+  Object.entries({
+    records,
+    pages,
+    templates,
+    alters,
+    valueLists,
+    valueSchemas,
+  }).forEach(([key, value]) => {
+    nbrErrors += checkNames(value, `${key}.ts`);
+  });
+
+  /**
+   * 0. clean-up folders that we are going to generate to
+   */
+  for (const folder of [jsonFolder, tsFolder]) {
+    rmSync(folder, { recursive: true, force: true });
+    mkdirSync(folder);
+  }
 
   /**
    * 1. application.json
    */
   let fileName = jsonFolder + 'application.json';
   const appJson: AppJson = {
-    appName: appComps.name,
-    maxLengthForTextField: appComps.maxLengthForTextField,
-    tenantFieldName: appComps.tenantFieldName,
-    tenantNameInDb: appComps.tenantNameInDb,
+    appName: appDesign.name,
+    maxLengthForTextField: appDesign.maxLengthForTextField,
+    tenantFieldName: appDesign.tenantFieldName,
+    tenantNameInDb: appDesign.tenantNameInDb,
   };
   writeFileSync(fileName, JSON.stringify(appJson));
   done(fileName);
 
-  //let allOK = true;
   /**
    * 2. valueLists.json
    */
@@ -113,7 +106,10 @@ function processComponents(
   writeFileSync(
     fileName,
     JSON.stringify({
-      valueLists: { ...systemResources.valueLists, ...appComps.valueLists },
+      valueLists: {
+        ...systemResources.valueLists,
+        ...appDesign.valueLists,
+      },
     }),
   );
   done(fileName);
@@ -125,7 +121,7 @@ function processComponents(
   writeFileSync(
     fileName,
     JSON.stringify({
-      messages: { ...systemResources.messages, ...appComps.messages },
+      messages: { ...systemResources.messages, ...appDesign.messages },
     }),
   );
   done(fileName);
@@ -133,13 +129,14 @@ function processComponents(
   /**
    * 4. valueSchemas.json
    */
+
   fileName = jsonFolder + 'valueSchemas.json';
   writeFileSync(
     fileName,
     JSON.stringify({
       valueSchemas: {
         ...systemResources.valueSchemas,
-        ...appComps.valueSchemas,
+        ...appDesign.valueSchemas,
       },
     }),
   );
@@ -149,505 +146,213 @@ function processComponents(
    * records are quite clumsy as of now because of the mismatch between the way the server and the client use the terms "forms" and "records".
    * This needs some serious re-factoring
    *
-   * Note: framework requires some records
+   * Note: framework requires some records. These are defined in systemResources.records
    */
-  const comps: AllRecords = {
-    all: { ...systemResources.records, ...appComps.records },
-    forms: {},
-    simpleRecords: {},
-    wrongOnes: {},
-  };
-
-  organizeRecords(comps);
+  let [processedRecords, n] = processRecords({
+    ...systemResources.records,
+    ...records,
+  });
+  nbrErrors += n;
 
   /**
    * 5. records.json
-   * we will write the converted ones. Java generator need not handle 'extended' records...
+   * Records are already extended, and any references are already resolved. Java generator need not handle 'extended' records...
    */
-  writeJsons(jsonFolder, 'rec', { ...comps.all, ...comps.simpleRecords });
+  writeJsons(jsonFolder, 'rec', {
+    ...processedRecords.all,
+    ...processedRecords.simple,
+  });
+
   /**
    * 6. forms.json
+   * Composite records are called forms on the server app.
    */
-  writeJsons(jsonFolder, 'form', comps.forms);
+  writeJsons(jsonFolder, 'form', processedRecords.composite);
 
   /**
    * 7. sql.json
    */
-  writeJsons(jsonFolder, 'sql', appComps.sqls || {});
+  writeJsons(jsonFolder, 'sql', appDesign.sqls || {});
 
   /**
-   * done with server side. Let's now generate .ts files
+   * done with server side. Let's now generate .ts files for the client-app
    */
   /**
    * 8. listSources.ts
    */
-  generateListSources(appComps.valueLists, tsFolder);
+  writeListSources(appDesign.valueLists, tsFolder);
 
   /**
-   * 9. form.ts and /form/*.ts
+   * 9. /form/*.ts
    */
-  //forms are needed for us to generate pages
   const forms: StringMap<Form> = {};
-  generateForms(comps, forms);
+  nbrErrors += generateForms(processedRecords, forms);
   writeAll(forms, tsFolder, 'Form', 'forms');
 
   /**
-   * 10. pages.ts from /template/*.ts and alter /pageAlterations
+   * resolve references in the hand-crafted pages
    */
-  const pages = appComps.pages || {};
-  const n = processPages(pages, forms);
-  if (n > 0) {
-    console.error(
-      `${n} Error: errors found in the pages. Generated Pages may not be usable!!`,
-    );
-    process.exit(1);
-  }
+  nbrErrors += processPages(pages, forms);
+  /**
+   * generate pages from templates. Generated pages are added to the pages collection
+   */
+  nbrErrors += processTemplates(templates, forms, pages);
 
-  generatePages(
-    appComps.templates || {},
-    appComps.pageAlterations || {},
-    forms,
-    pages,
-  );
+  /**
+   * Alter the pages based on the defined alterations. Note that the alteration could be on hand-crafted pages or on the generated pages.
+   */
+  alterPages(alters, pages);
+
+  /**
+   * 10. page.ts for all pages. These include hand-crafted pages that have been de-referenced as well as generated pages, duly altered.
+   */
   writeAll(pages, tsFolder, 'Page', 'pages');
+
+  /**
+   * 11. write collection files for pages and forms
+   */
+
+  let text = toCollectionFile(Object.keys(pages), 'pages', 'Page', 'PageName');
+  writeFileSync(tsFolder + 'pages/index.ts', text);
+
+  text = toCollectionFile(Object.keys(forms), 'forms', 'Form', 'FormName');
+  writeFileSync(tsFolder + 'forms/index.ts', text);
+
+  if (nbrErrors == 0) {
+    return;
+  }
+
+  console.error(
+    `${nbrErrors} errors found. Files are still generated for debugging purposes. They may not be usable!!`,
+  );
+  process.exit(1);
 }
 
-function done(_fileName: string): void {
-  //console.info(`file ${fileName} created.`);
-}
-
-function organizeRecords(comps: AllRecords): void {
-  for (const [name, record] of Object.entries(comps.all)) {
-    const rt = record.recordType;
-    if (rt === 'composite') {
-      comps.forms[name] = record;
-    } else if (rt === 'simple') {
-      comps.simpleRecords[name] = record;
-    } else {
-      //we have to extend it. Let us do it later
-    }
-  }
-
-  //extend all the "extended" records
-  for (const record of Object.values(comps.all)) {
-    if (record.recordType === 'extended') {
-      //convert it to simple and add it to records collection
-      toSimpleRecord(record, comps, []);
-    }
-  }
-}
-
-/**
- * convert the extended record to simple record, and add it to the records collections
- * @returns new simple record that is already added to the records collection
- */
-function toSimpleRecord(
-  record: ExtendedRecord,
-  comps: AllRecords,
-  dependencies: string[],
-): SimpleRecord | undefined {
-  const recordName = record.name;
-
-  const sr = comps.simpleRecords[recordName];
-  if (sr) {
-    //already converted and put to records. This happens if it was a main-record for another extended record
-    return sr;
-  }
-
-  if (comps.wrongOnes[recordName]) {
-    //already detected as a problematic one
-    return undefined;
-  }
-
-  const mainRecordName = record.mainRecordName;
-  if (recordName === mainRecordName) {
-    console.error(
-      `Error: Extended ${recordName} has set itself as its mainRecord!! `,
-    );
-    comps.wrongOnes[recordName] = true;
-    return undefined;
-  }
-
-  //are we getting into an infinite loop?
-  const idx = dependencies.indexOf(recordName);
-  if (idx !== -1) {
-    console.error(
-      `Error: Record ${recordName} is an extended record, but has a cyclical/recursive dependency on itself`,
-    );
-    const t = dependencies.slice(idx);
-    t.push(recordName);
-    console.error(t.join(' --> '));
-    //actually, all the entries are wrong ones, but we will anyway go through them as the recursive function returns...
-    comps.wrongOnes[recordName] = true;
-    return undefined;
-  }
-
-  let mainRecord: Record | undefined = comps.simpleRecords[mainRecordName];
-  if (!mainRecord) {
-    mainRecord = comps.all[mainRecordName];
-    if (mainRecord === undefined) {
+function processTable(
+  table: TableEditor | TableViewer,
+  form: Form | undefined,
+  pageName: string,
+): number {
+  if (!table.editable && table.columns) {
+    if (table.children?.length) {
       console.error(
-        `Error: Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that record is not defined`,
+        `Error: Page: ${pageName} Table '${table.name}': Both children and columns are specified. Columns ignored.`,
       );
-
-      comps.wrongOnes[recordName] = true;
-      return undefined;
+      return 1;
     }
-
-    if (mainRecord.recordType === 'composite') {
-      console.error(
-        `Error: Extended record ${recordName} uses mainRecordName="${mainRecordName}", but that is a form/composite-record`,
-      );
-
-      comps.wrongOnes[recordName] = true;
-      return undefined;
-    }
-
-    /**
-     * recurse to get the main-record converted first
-     */
-    dependencies.push(recordName);
-    mainRecord = toSimpleRecord(
-      mainRecord as ExtendedRecord,
-      comps,
-      dependencies,
-    );
-    dependencies.pop();
-
-    if (!mainRecord) {
-      comps.wrongOnes[recordName] = true;
-      return undefined;
-    }
+    //nothing to process
+    return 0;
   }
 
-  const newRecord = extendIt(record, mainRecord);
-  if (!newRecord) {
-    comps.wrongOnes[recordName] = true;
-    return undefined;
-  }
-
-  comps.simpleRecords[recordName] = newRecord;
-  return newRecord;
-}
-
-function extendIt(
-  recordToExtend: ExtendedRecord,
-  ref: SimpleRecord,
-): SimpleRecord | undefined {
-  const obj: StringMap<any> = {
-    ...ref,
-    ...recordToExtend,
-    recordType: 'simple',
-  };
-  delete obj.fieldNames;
-  delete obj.additionalFields;
-  delete obj.mainRecordName;
-  if (!recordToExtend.nameInDb && !recordToExtend.operations && ref.nameInDb) {
-    //extended record does not want any db operation. Let's not override it.
-    delete obj.nameInDb;
-    delete obj.operations;
-  }
-  const newFields: Field[] = [];
-  obj.fields = newFields;
-
-  const newRecord = obj as SimpleRecord;
-
-  //fields from ref records into a map
-  const refFields: StringMap<Field> = {};
-  for (const field of ref.fields) {
-    refFields[field.name] = field;
-  }
-
-  if (recordToExtend.fieldNames && recordToExtend.fieldNames[0] !== '*') {
-    // subset of fields to be copied
-    for (const fieldName of recordToExtend.fieldNames) {
-      const field = refFields[fieldName];
-      if (!field) {
-        console.error(
-          `Error: Extended record ${recordToExtend.name} specifies ${fieldName} as a reference field but that field is not defined in the reference record ${ref.name}. Field skipped`,
-        );
-        return undefined;
-      }
-      newFields.push(field);
+  let children = table.children;
+  if (children && children.length) {
+    const n = processFields(children, form, pageName);
+    if (n > 0) {
+      return n;
     }
+  } else if (form) {
+    children = [];
+    for (const fieldName of form.fieldNames) {
+      const field = form.fields[fieldName];
+      children.push({ ...field, compType: 'field' });
+    }
+    table.children = children;
   } else {
-    // copy all records
-    for (const field of ref.fields) {
-      newFields.push(field);
+    if (table.editable) {
+      console.error(
+        `Error:  Page: ${pageName} Table '${table.name}' is editable. Editable table should either specify child-components or a form`,
+      );
+      return 1;
     }
+    console.warn(
+      `Warn: Page: ${pageName} Table '${table.name}': Data will be rendered dynamically based on the columns received at run time.`,
+    );
+    return 0;
   }
 
-  if (recordToExtend.additionalFields) {
-    for (const field of recordToExtend.additionalFields) {
-      if (refFields[field.name]) {
-        if (replaceField(field, newRecord.fields)) {
-          continue; // replaced an existing entry in the array
+  /**
+   * table viewer is optimized for read-only by converting comps into ColumnDetails
+   */
+  if (!table.editable) {
+    table.columns = compsToCols(children);
+    delete table.children;
+  }
+  return 0;
+}
+
+function compsToCols(comps: LeafComponent[]) {
+  const cols: ColumnDetails[] = [];
+  for (const comp of comps) {
+    if (comp.compType === 'field' || comp.compType === 'referred') {
+      const col = fieldToCol(comp as DataField);
+      if (col) {
+        cols.push(col);
+      }
+      continue;
+    }
+
+    if (comp.compType === 'range') {
+      const r = comp as RangePanel;
+      for (const f of [r.fromField, r.toField]) {
+        const col = fieldToCol(f as DataField);
+        if (col) {
+          cols.push(col);
         }
       }
-      newFields.push(field);
+      continue;
     }
+    cols.push({
+      name: comp.name,
+      valueType: 'text',
+      label: comp.label || toLabel(comp.name),
+      comp,
+    });
   }
-
-  return newRecord as SimpleRecord;
+  return cols;
 }
 
-function replaceField(field: Field, fields: Field[]): boolean {
-  const fieldName = field.name;
-  for (let i = 0; i < fields.length; i++) {
-    if (fields[i].name === fieldName) {
-      fields[i] = field;
-      return true;
-    }
+function fieldToCol(field: Field | DataField): ColumnDetails | undefined {
+  if (field.renderAs === 'hidden' || field.hideInList) {
+    return undefined;
   }
-  return false;
+  const col: ColumnDetails = {
+    name: field.name,
+    label: field.label || toLabel(field.name),
+    valueType: field.valueType,
+    valueFormatter: field.valueFormatter,
+    onClick: field.onClick,
+  };
+  if (field.listOptions) {
+    col.valueList = toMap(field.listOptions);
+  }
+  return col;
 }
 
-function copyAttrs(
-  fromObj: StringMap<unknown>,
-  toObj: StringMap<unknown>,
-  attrs: string[],
-): void {
-  for (const attr of attrs) {
-    const value = fromObj[attr];
-    if (value !== undefined) {
-      toObj[attr] = value;
-    }
-  }
-}
-
-function writeJsons(
-  jsonFolder: string,
-  typ: string,
-  comps: { [key: string]: any },
+/**
+ * generated pages are written to a separate folder, and the run time system uses these generated pages rather than the ones written by the programmer
+ */
+function alterPages(
+  alterations: StringMap<PageAlteration>,
+  pages: StringMap<Page>,
 ) {
-  const folder = jsonFolder + typ + '/';
-  mkdirSync(folder);
-  for (const [name, comp] of Object.entries(comps)) {
-    if (name !== comp.name!) {
+  for (const [name, alts] of Object.entries(alterations)) {
+    const page = pages[name];
+    if (page) {
+      alterPage(page, alts);
+      //console.info(`page ${name} altered`);
+    } else {
       console.error(
-        `Error: Component with name='${comp.name}' is indexed with key='${name}. This is incorrect. Name should match the indexed-key to ensure that the name is unique across all records\n json NOT created for this record`,
+        `Error: Alteration for Page ${name}:  Alterations specified, but that page is not defined`,
       );
-      continue;
     }
-
-    const fileName = folder + name + '.' + typ + '.json';
-    writeFileSync(fileName, JSON.stringify(comp));
-    done(fileName);
-  }
-}
-
-function generateListSources(
-  valueLists: StringMap<ValueList>,
-  tsFolder: string,
-) {
-  const listSources: StringMap<ListSource> = {};
-  for (const [name, list] of Object.entries(valueLists)) {
-    if (list.listType === 'simple') {
-      listSources[name] = {
-        name,
-        isKeyed: false,
-        isRuntime: false,
-        okToCache: true,
-        list: (list as FixedList).list,
-      };
-    } else if (list.listType === 'keyed') {
-      listSources[name] = {
-        name,
-        isKeyed: true,
-        isRuntime: false,
-        okToCache: true,
-        keyedList: (list as FixedKeyedList).keyedList,
-      };
-    }
-  }
-  const str =
-    "import { StringMap, ListSource } from 'simplity-types';\nexport const listSources: StringMap<ListSource> = " +
-    JSON.stringify(listSources) +
-    ';\n';
-  const fileName = tsFolder + 'listSources.ts';
-  writeFileSync(fileName, str);
-  done(fileName);
-}
-
-function generateForms(comps: AllRecords, forms: StringMap<Form>) {
-  for (const [name, record] of Object.entries(comps.all)) {
-    if (!record.isVisibleToClient) {
-      console.warn(
-        `Warning: Record ${name} is not visible to the client-side. Form not created.`,
-      );
-      continue;
-    }
-
-    let childRecords: ChildRecord[] | undefined;
-    let sr: SimpleRecord | undefined = comps.simpleRecords[name];
-    if (!sr) {
-      /**
-       * this is a composite record. We create form for the main form as a simple record first
-       */
-      const cr = record as CompositeRecord;
-      childRecords = cr.childRecords;
-
-      const ref = comps.simpleRecords[cr.mainRecordName];
-
-      if (ref === undefined) {
-        console.error(
-          `Error: Composite/extended Record "${name}" has mainRecord="${cr.mainRecordName}" but that record is not defined, or is a composite-record. Source NOT generated`,
-        );
-        continue;
-      }
-
-      const temp: StringMap<unknown> = { ...cr };
-      delete temp.childForms;
-      temp.fields = ref.fields;
-      sr = temp as SimpleRecord;
-    }
-
-    const form = toForm(sr);
-    if (childRecords) {
-      form.childForms = toChildForms(childRecords);
-    }
-    forms[name] = form;
-  }
-}
-
-function toForm(record: SimpleRecord): Form {
-  const form: StringMap<unknown> = {};
-  copyAttrs(record, form, [
-    'name',
-    //"operations",
-    'serveGuests',
-    'validationFn',
-    'interFieldValidations',
-  ]);
-
-  if (record.operations !== undefined) {
-    const ops: ValidFormOperations = {};
-    for (const op of record.operations) {
-      ops[op] = true;
-    }
-    form.operations = ops;
-  }
-
-  const [fields, fieldNames, keyFields] = toDataFields(record.fields);
-  form.fieldNames = fieldNames;
-  form.fields = fields;
-  if (keyFields) {
-    form.keyFields = keyFields;
-  }
-
-  return form as Form;
-}
-
-function toDataFields(
-  recordFields: Field[],
-): [StringMap<DataField>, string[], string[] | undefined] {
-  const fields: StringMap<DataField> = {};
-  const names: string[] = [];
-  let keyFields: string[] = [];
-  for (const f of recordFields) {
-    names.push(f.name);
-    fields[f.name] = toDataField(f);
-    if (f.fieldType === 'generatedPrimaryKey' || f.fieldType === 'primaryKey') {
-      keyFields.push(f.name);
-    }
-  }
-  if (keyFields.length === 0) {
-    return [fields, names, undefined];
-  }
-  return [fields, names, keyFields];
-}
-
-function toDataField(field: Field): DataField {
-  const dataField: StringMap<unknown> = {};
-  copyAttrs(field, dataField, [
-    'customHtml',
-    'defaultValue',
-    'filterable',
-    'formattingFn',
-    'hideInList',
-    'hideInSave',
-    'hint',
-    'icon',
-    'imageNamePrefix',
-    'imageNameSuffix',
-    'isArray',
-    'label',
-    'labelAttributes',
-    'listKeyFieldName',
-    'listKeyValue',
-    'listName',
-    'listOptions',
-    'name',
-    'messageId',
-    'onBeingChanged',
-    'onChange',
-    'onClick',
-    'placeHolder',
-    'prefix',
-    'sortable',
-    'suffix',
-    'renderAs',
-    'valueFormatter',
-    'valueSchema',
-    'valueType',
-    'width',
-  ]);
-
-  dataField.isRequired = toIsRequired(field.fieldType);
-  dataField.compType = 'field';
-  if (!field.renderAs) {
-    dataField.renderAs = getRenderAs(field, field.valueType);
-  }
-
-  return dataField as DataField;
-}
-function toIsRequired(ft: FieldType): boolean {
-  return (
-    ft === 'generatedPrimaryKey' || ft === 'primaryKey' || ft === 'requiredData'
-  );
-}
-function toChildForms(childRecords: ChildRecord[]): StringMap<ChildForm> {
-  const children: StringMap<ChildForm> = {};
-  for (const cr of childRecords) {
-    const child: StringMap<unknown> = {};
-    copyAttrs(cr, child, [
-      'errorId',
-      //"formName",
-      'isEditable',
-      'isTable',
-      'label',
-      'maxRows',
-      'minRows',
-      //"name",
-    ]);
-    child.name = cr.childName;
-    child.formName = cr.childRecordName;
-    children[child.name as string] = child as ChildForm;
-  }
-  return children;
-}
-
-function getRenderAs(field: Field, valueType: ValueType): FieldRendering {
-  if (field.listName) {
-    return 'select';
-  }
-  if (valueType === 'boolean') {
-    return 'check-box';
-  }
-
-  switch (field.fieldType) {
-    case 'primaryKey':
-    case 'optionalData':
-    case 'requiredData':
-      return 'text-field';
-    default:
-      return 'output';
   }
 }
 
 /**
- * go through pages, alert any errors, and expand fields in a panel if required before copying it the new collection
- * @param pages
+ * A page component may have references. All the references are replaced with relevant sub-components.
+ * Note that the page component is altered/updated in place.
+ * @param pages to be processed
+ * @param forms source of forms to resolve any references in the pages
  */
 function processPages(pages: StringMap<Page>, forms: StringMap<Form>): number {
   let n = 0;
@@ -779,106 +484,6 @@ function processRefField(
   return undefined;
 }
 
-function processTable(
-  table: TableEditor | TableViewer,
-  form: Form | undefined,
-  pageName: string,
-): number {
-  if (!table.editable && table.columns) {
-    if (table.children?.length) {
-      console.error(
-        `Error: Page: ${pageName} Table '${table.name}': Both children and columns are specified. Columns ignored.`,
-      );
-      return 1;
-    }
-    //nothing to process
-    return 0;
-  }
-
-  let children = table.children;
-  if (children && children.length) {
-    const n = processFields(children, form, pageName);
-    if (n > 0) {
-      return n;
-    }
-  } else if (form) {
-    children = [];
-    for (const fieldName of form.fieldNames) {
-      const field = form.fields[fieldName];
-      children.push({ ...field, compType: 'field' });
-    }
-    table.children = children;
-  } else {
-    if (table.editable) {
-      console.error(
-        `Error:  Page: ${pageName} Table '${table.name}' is editable. Editable table should either specify child-components or a form`,
-      );
-      return 1;
-    }
-    console.warn(
-      `Warn: Page: ${pageName} Table '${table.name}': Data will be rendered dynamically based on the columns received at run time.`,
-    );
-    return 0;
-  }
-
-  /**
-   * table viewer is optimized for read-only by converting comps into ColumnDetails
-   */
-  if (!table.editable) {
-    table.columns = compsToCols(children);
-    delete table.children;
-  }
-  return 0;
-}
-
-function compsToCols(comps: LeafComponent[]) {
-  const cols: ColumnDetails[] = [];
-  for (const comp of comps) {
-    if (comp.compType === 'field' || comp.compType === 'referred') {
-      const col = fieldToCol(comp as DataField);
-      if (col) {
-        cols.push(col);
-      }
-      continue;
-    }
-
-    if (comp.compType === 'range') {
-      const r = comp as RangePanel;
-      for (const f of [r.fromField, r.toField]) {
-        const col = fieldToCol(f as DataField);
-        if (col) {
-          cols.push(col);
-        }
-      }
-      continue;
-    }
-    cols.push({
-      name: comp.name,
-      valueType: 'text',
-      label: comp.label || toLabel(comp.name),
-      comp,
-    });
-  }
-  return cols;
-}
-
-function fieldToCol(field: Field | DataField): ColumnDetails | undefined {
-  if (field.renderAs === 'hidden' || field.hideInList) {
-    return undefined;
-  }
-  const col: ColumnDetails = {
-    name: field.name,
-    label: field.label || toLabel(field.name),
-    valueType: field.valueType,
-    valueFormatter: field.valueFormatter,
-    onClick: field.onClick,
-  };
-  if (field.listOptions) {
-    col.valueList = toMap(field.listOptions);
-  }
-  return col;
-}
-
 function toMap(arr: SimpleList): StringMap<string> {
   const map: StringMap<string> = {};
   for (const { label, value } of arr) {
@@ -923,38 +528,85 @@ function processFields(
   return n;
 }
 
-/**
- * generated pages are written to a separate folder, and the run time system uses these generated pages rather than the ones written by the programmer
- */
-function generatePages(
-  templates: StringMap<PageTemplate>,
-  alterations: StringMap<PageAlteration>,
-  forms: StringMap<Form>,
-  pages: StringMap<Page>,
+function writeJsons(
+  jsonFolder: string,
+  typ: string,
+  comps: { [key: string]: any },
 ) {
-  for (const [name, template] of Object.entries(templates)) {
-    const form = forms[template.formName];
-    if (form) {
-      generatePage(template, form, pages);
-      //console.info(`page template ${name} processed to generate ${n} page/s`);
-    } else {
+  const folder = jsonFolder + typ + '/';
+  mkdirSync(folder);
+  for (const [name, comp] of Object.entries(comps)) {
+    if (name !== comp.name!) {
       console.error(
-        `Error: Template ${name}:  Form ${template.formName} is not defined`,
+        `Error: Component with name='${comp.name}' is indexed with key='${name}. This is incorrect. Name should match the indexed-key to ensure that the name is unique across all records\n json NOT created for this record`,
       );
+      continue;
     }
-  }
 
-  for (const [name, alts] of Object.entries(alterations)) {
-    const page = pages[name];
-    if (page) {
-      alterPage(page, alts);
-      //console.info(`page ${name} altered`);
+    const fileName = folder + name + '.' + typ + '.json';
+    writeFileSync(fileName, JSON.stringify(comp));
+    done(fileName);
+  }
+}
+
+function writeListSources(valueLists: StringMap<ValueList>, tsFolder: string) {
+  const listSources: StringMap<ListSource> = {};
+  for (const [name, list] of Object.entries(valueLists)) {
+    if (list.listType === 'simple') {
+      listSources[name] = {
+        name,
+        isKeyed: false,
+        isRuntime: false,
+        okToCache: true,
+        list: (list as FixedList).list,
+      };
+    } else if (list.listType === 'keyed') {
+      listSources[name] = {
+        name,
+        isKeyed: true,
+        isRuntime: false,
+        okToCache: true,
+        keyedList: (list as FixedKeyedList).keyedList,
+      };
     } else {
-      console.error(
-        `Error: Alteration for Page ${name}:  Alterations specified, but that page is not defined`,
-      );
+      listSources[name] = {
+        name,
+        isKeyed: list.isKeyed,
+        isRuntime: true,
+        okToCache: false,
+      };
     }
   }
+  const str =
+    "import { StringMap, ListSource } from 'simplity-types';\nexport const listSources: StringMap<ListSource> = " +
+    JSON.stringify(listSources) +
+    ';\n';
+  const fileName = tsFolder + 'listSources.ts';
+  writeFileSync(fileName, str);
+  done(fileName);
+}
+
+function done(_fileName: string): void {
+  //console.info(`file ${fileName} created.`);
+}
+
+function checkNames(objects: StringMap<NamedObject>, fileName: string): number {
+  let nbrErrors = 0;
+  for (const [name, obj] of Object.entries(objects)) {
+    if (name === '') {
+      console.error(`Error: Empty string as name found in file ${fileName}.`);
+      nbrErrors++;
+      continue;
+    }
+
+    if (name !== obj.name) {
+      console.error(
+        `Error: name='${obj.name}' but it is indexed as '${name}' in the file ${fileName}. Value list must be indexed as its name`,
+      );
+      nbrErrors++;
+    }
+  }
+  return nbrErrors;
 }
 
 function writeAll(
@@ -972,51 +624,41 @@ function writeAll(
   const compNames: string[] = [];
   for (const [name, comp] of Object.entries(comps)) {
     compNames.push(name);
-    const fileName = folderName + name + '.ts';
+    const fileName = `${folderName}${name}.ts`;
     writeFileSync(
       fileName,
-      `import {  ${typ} } from 'simplity-types';\nexport const ${name}: ${typ} = ${JSON.stringify(comp)};\n`,
+      `import {  ${typ} } from 'simplity-types';
+      export const ${name}: ${typ} = ${JSON.stringify(comp)};\n`,
     );
     done(fileName);
   }
-
-  /**
-   * write the allCOmps file in the root-folder
-   */
-  const t = [`import { StringMap, ${typ} } from 'simplity-types';`];
-  for (const name of compNames) {
-    t.push(`import { ${name} } from './${allCompsName}/${name}';`);
-  }
-
-  // emit object members
-  t.push(`\nexport const ${allCompsName}: StringMap<${typ}> = {`);
-  for (const name of compNames) {
-    t.push(`\t${name},`);
-  }
-  t.push('};\n');
-
-  const fileName = rootFolder + allCompsName + '.ts';
-  writeFileSync(fileName, t.join('\n'));
-  done(fileName);
 }
 
-export function checkValueLists(lists: StringMap<ValueList>): number {
-  let n = 0;
-  for (const [name, list] of Object.entries(lists)) {
-    if (name === '') {
-      console.error(`Error: Empty string as name found in file valueLists.ts.`);
-      n++;
-    }
+function toCollectionFile(
+  names: string[],
+  compName: string,
+  compType: string,
+  nameType: string,
+): string {
+  const imports = names
+    .map((name) => `import { ${name} } from './${name}';`)
+    .join('\n');
 
-    if (name !== list.name) {
-      console.error(
-        `Error: Value list with name='${list.name}' is indexed as '${name}' in the file valueLists.ts. Value list must be indexed as its name`,
-      );
-      n++;
-    }
-  }
-  return n;
+  return `/**
+ * This is a generated file. Any edits are likely to be overwritten.
+ */
+
+import { StringMap, ${compType} } from 'simplity-types';
+${imports}
+
+export const ${compName}: StringMap<${compType}> = {
+  ${names.join(',\n  ')}
+};
+
+export type ${nameType} = '${names.join("' | '")}';
+`;
 }
+
 function toLabel(name: string): string {
   if (!name) {
     return '';
@@ -1029,7 +671,7 @@ function toLabel(name: string): string {
   const text = firstChar + name.substring(1);
   let label = '';
   /**
-   * we have ensure that the first character is upper case.
+   * we have  to ensure that the first character is upper case.
    * hence the loop will end after adding all the words when we come from the end
    */
   let lastAt = n;
