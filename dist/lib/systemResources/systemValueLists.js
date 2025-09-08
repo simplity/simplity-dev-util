@@ -1,4 +1,7 @@
-export const systemValueLists = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.systemValueLists = void 0;
+exports.systemValueLists = {
     _reportName: {
         name: '_reportName',
         listType: 'runtime',

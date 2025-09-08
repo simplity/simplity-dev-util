@@ -1,5 +1,8 @@
-import { join } from 'path';
-import { statSync, readdirSync, writeFileSync, existsSync, mkdirSync, } from 'fs';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateCollectionFiles = generateCollectionFiles;
+const path_1 = require("path");
+const fs_1 = require("fs");
 const collections = [
     {
         name: 'alters',
@@ -46,16 +49,16 @@ const DISCLAIMER = `/**
  * @param importPrefix The prefix to use for imports. Like in "import {page1 } from 'prefix/pages/page1.page'". Defaults to '@/comps/'
  * @param outputFolder The folder to write the collection files. Defaults to './src/comps/generated/'
  */
-export function generateCollectionFiles(compRoot = './src/comps/', importPrefix = '@/comps/', outputFolder = './src/comps/generated/') {
+function generateCollectionFiles(compRoot = './src/comps/', importPrefix = '@/comps/', outputFolder = './src/comps/generated/') {
     for (const compDetails of collections) {
         console.log(`Processing ${compDetails.name}...`);
         const compLocations = {};
-        const startingFolder = join(compRoot, compDetails.folderName || compDetails.name);
+        const startingFolder = (0, path_1.join)(compRoot, compDetails.folderName || compDetails.name);
         /*
          * does the folder exist? if not skip it.
          */
-        if (!existsSync(startingFolder) ||
-            !statSync(startingFolder).isDirectory()) {
+        if (!(0, fs_1.existsSync)(startingFolder) ||
+            !(0, fs_1.statSync)(startingFolder).isDirectory()) {
             console.warn(`Warning: ${startingFolder} is not a directory. Skipping.`);
             continue;
         }
@@ -70,11 +73,11 @@ export function generateCollectionFiles(compRoot = './src/comps/', importPrefix 
  * @param relativePath The relative path of the current folder.
  */
 function scanDirectory(compLocations, ext, currentFolder, relativePath = '') {
-    const items = readdirSync(currentFolder);
+    const items = (0, fs_1.readdirSync)(currentFolder);
     for (const item of items) {
-        const fullPath = join(currentFolder, item);
-        if (statSync(fullPath).isDirectory()) {
-            const newRelativePath = relativePath ? join(relativePath, item) : item;
+        const fullPath = (0, path_1.join)(currentFolder, item);
+        if ((0, fs_1.statSync)(fullPath).isDirectory()) {
+            const newRelativePath = relativePath ? (0, path_1.join)(relativePath, item) : item;
             scanDirectory(compLocations, ext, fullPath, newRelativePath);
         }
         else if (item.endsWith(ext)) {
@@ -111,10 +114,10 @@ export const ${compDetails.name}: StringMap<${compDetails.type}> = {
 }
 function writeIt(folder, fileName, text) {
     //create the folder if it doesn't exist
-    if (!existsSync(folder)) {
-        mkdirSync(folder, { recursive: true });
+    if (!(0, fs_1.existsSync)(folder)) {
+        (0, fs_1.mkdirSync)(folder, { recursive: true });
     }
-    writeFileSync(join(folder, fileName), text);
+    (0, fs_1.writeFileSync)((0, path_1.join)(folder, fileName), text);
 }
 function toSimpleName(name) {
     return name.substring(0, name.indexOf('.'));

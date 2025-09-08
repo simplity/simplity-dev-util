@@ -1,10 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.processTemplates = processTemplates;
 /**
  * Processes the templates to generate pages.
  * @param templates The templates to process.
  * @param forms The forms to use for generating pages.
  * @param pages The pages to populate with generated content.
  */
-export function processTemplates(templates, forms, pages) {
+function processTemplates(templates, forms, pages) {
     let nbrErrors = 0;
     for (const [name, template] of Object.entries(templates)) {
         const form = forms[template.formName];
@@ -75,32 +78,30 @@ function pageExists(name, pages, masterName) {
  * generator that can generate different types of pages from a template
  */
 class Gen {
-    template;
-    form;
-    /**
-     * input parameter includes keys as well as additional ones.
-     * key is made optional to allow save page to skip key fields.
-     * boolean indicates whether the input is required or not
-     */
-    inputParams = {};
-    /**
-     * all parameters: keys + additional
-     */
-    allParams = {};
-    /**
-     * only the additional params. Add page needs only these. (not the key fields)
-     */
-    addParams = {};
-    /**
-     * only the key fields. view
-     */
-    keyParams = {};
-    actions = {};
-    buttons = [];
-    nbrErrors = 0;
     constructor(template, form) {
         this.template = template;
         this.form = form;
+        /**
+         * input parameter includes keys as well as additional ones.
+         * key is made optional to allow save page to skip key fields.
+         * boolean indicates whether the input is required or not
+         */
+        this.inputParams = {};
+        /**
+         * all parameters: keys + additional
+         */
+        this.allParams = {};
+        /**
+         * only the additional params. Add page needs only these. (not the key fields)
+         */
+        this.addParams = {};
+        /**
+         * only the key fields. view
+         */
+        this.keyParams = {};
+        this.actions = {};
+        this.buttons = [];
+        this.nbrErrors = 0;
     }
     generate() {
         this.inputParams = {};

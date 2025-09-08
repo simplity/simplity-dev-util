@@ -1,4 +1,7 @@
-export const _sorts = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports._sorts = void 0;
+exports._sorts = {
     name: '_sorts',
     isVisibleToClient: true,
     recordType: 'simple',

@@ -1,4 +1,7 @@
-export const _filters = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports._filters = void 0;
+exports._filters = {
     name: '_filters',
     isVisibleToClient: true,
     recordType: 'simple',

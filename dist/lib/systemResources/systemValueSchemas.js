@@ -1,4 +1,7 @@
-export const systemValueSchemas = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.systemValueSchemas = void 0;
+exports.systemValueSchemas = {
     _name: {
         name: '_name',
         valueType: 'text',

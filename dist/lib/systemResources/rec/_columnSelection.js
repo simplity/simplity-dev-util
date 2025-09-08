@@ -1,4 +1,7 @@
-export const _columnSelection = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports._columnSelection = void 0;
+exports._columnSelection = {
     name: '_columnSelection',
     isVisibleToClient: true,
     recordType: 'simple',

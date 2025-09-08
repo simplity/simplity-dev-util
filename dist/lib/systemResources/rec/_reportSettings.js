@@ -1,4 +1,7 @@
-export const _reportSettings = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports._reportSettings = void 0;
+exports._reportSettings = {
     name: '_reportSettings',
     recordType: 'simple',
     description: 'configuration of a dynamic report. This may be done by the app=administrator, or by an end-users',

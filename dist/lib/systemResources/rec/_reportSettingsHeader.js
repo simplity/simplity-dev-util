@@ -1,4 +1,7 @@
-export const _reportSettingsHeader = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports._reportSettingsHeader = void 0;
+exports._reportSettingsHeader = {
     name: '_reportSettingsHeader',
     isVisibleToClient: true,
     recordType: 'simple',

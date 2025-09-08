@@ -1,9 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.processRecords = processRecords;
 /**
  * Records are designed with a syntax that allows extending, and copying fields from one another
  * It is better to make each record independent of the other for run time effeciemcy.
  * This function processes the record components to achieve that independence.
  */
-export function processRecords(records) {
+function processRecords(records) {
     const allRecords = {
         all: records,
         simple: {},

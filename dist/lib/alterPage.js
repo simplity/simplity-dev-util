@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.alterPage = alterPage;
 /**
  * attributes that we copy/override : simple ones
  */
@@ -35,7 +38,7 @@ const arrAttributes = [
  * @param pageToAlter received as any to avoid the compile time error with readonly check
  * @param alterations
  */
-export function alterPage(page, alts) {
+function alterPage(page, alts) {
     //console.info(`page ${page.name} is going to be altered`);
     //step-1: copy simple attributes
     for (const attr of simpleAttributes) {

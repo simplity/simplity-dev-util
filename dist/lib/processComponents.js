@@ -1,10 +1,13 @@
-import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import { alterPage } from './alterPage';
-import { processTemplates } from './processTemplates';
-import { systemResources } from './systemResources';
-import { generateForms } from './generateForms';
-import { processRecords } from './processRecords';
-export function processComponents(appDesign, jsonFolder, tsFolder) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.processComponents = processComponents;
+const fs_1 = require("fs");
+const alterPage_1 = require("./alterPage");
+const processTemplates_1 = require("./processTemplates");
+const systemResources_1 = require("./systemResources");
+const generateForms_1 = require("./generateForms");
+const processRecords_1 = require("./processRecords");
+function processComponents(appDesign, jsonFolder, tsFolder) {
     let nbrErrors = 0;
     /**
      * check if all our named-components have the right name
@@ -29,8 +32,8 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
      * 0. clean-up folders that we are going to generate to
      */
     for (const folder of [jsonFolder, tsFolder]) {
-        rmSync(folder, { recursive: true, force: true });
-        mkdirSync(folder);
+        (0, fs_1.rmSync)(folder, { recursive: true, force: true });
+        (0, fs_1.mkdirSync)(folder);
     }
     /**
      * 1. application.json
@@ -42,15 +45,15 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
         tenantFieldName: appDesign.tenantFieldName,
         tenantNameInDb: appDesign.tenantNameInDb,
     };
-    writeFileSync(fileName, JSON.stringify(appJson));
+    (0, fs_1.writeFileSync)(fileName, JSON.stringify(appJson));
     done(fileName);
     /**
      * 2. valueLists.json
      */
     fileName = jsonFolder + 'valueLists.json';
-    writeFileSync(fileName, JSON.stringify({
+    (0, fs_1.writeFileSync)(fileName, JSON.stringify({
         valueLists: {
-            ...systemResources.valueLists,
+            ...systemResources_1.systemResources.valueLists,
             ...appDesign.valueLists,
         },
     }));
@@ -59,17 +62,17 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
      * 3. messages.json
      */
     fileName = jsonFolder + 'messages.json';
-    writeFileSync(fileName, JSON.stringify({
-        messages: { ...systemResources.messages, ...appDesign.messages },
+    (0, fs_1.writeFileSync)(fileName, JSON.stringify({
+        messages: { ...systemResources_1.systemResources.messages, ...appDesign.messages },
     }));
     done(fileName);
     /**
      * 4. valueSchemas.json
      */
     fileName = jsonFolder + 'valueSchemas.json';
-    writeFileSync(fileName, JSON.stringify({
+    (0, fs_1.writeFileSync)(fileName, JSON.stringify({
         valueSchemas: {
-            ...systemResources.valueSchemas,
+            ...systemResources_1.systemResources.valueSchemas,
             ...appDesign.valueSchemas,
         },
     }));
@@ -80,8 +83,8 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
      *
      * Note: framework requires some records. These are defined in systemResources.records
      */
-    let [processedRecords, n] = processRecords({
-        ...systemResources.records,
+    let [processedRecords, n] = (0, processRecords_1.processRecords)({
+        ...systemResources_1.systemResources.records,
         ...records,
     });
     nbrErrors += n;
@@ -113,7 +116,7 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
      * 9. /form/*.ts
      */
     const forms = {};
-    nbrErrors += generateForms(processedRecords, forms);
+    nbrErrors += (0, generateForms_1.generateForms)(processedRecords, forms);
     writeAll(forms, tsFolder, 'Form', 'forms');
     /**
      * resolve references in the hand-crafted pages
@@ -122,7 +125,7 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
     /**
      * generate pages from templates. Generated pages are added to the pages collection
      */
-    nbrErrors += processTemplates(templates, forms, pages);
+    nbrErrors += (0, processTemplates_1.processTemplates)(templates, forms, pages);
     /**
      * Alter the pages based on the defined alterations. Note that the alteration could be on hand-crafted pages or on the generated pages.
      */
@@ -135,9 +138,9 @@ export function processComponents(appDesign, jsonFolder, tsFolder) {
      * 11. write collection files for pages and forms
      */
     let text = toCollectionFile(Object.keys(pages), 'pages', 'Page', 'PageName');
-    writeFileSync(tsFolder + 'pages/index.ts', text);
+    (0, fs_1.writeFileSync)(tsFolder + 'pages/index.ts', text);
     text = toCollectionFile(Object.keys(forms), 'forms', 'Form', 'FormName');
-    writeFileSync(tsFolder + 'forms/index.ts', text);
+    (0, fs_1.writeFileSync)(tsFolder + 'forms/index.ts', text);
     if (nbrErrors == 0) {
         return;
     }
@@ -237,7 +240,7 @@ function alterPages(alterations, pages) {
     for (const [name, alts] of Object.entries(alterations)) {
         const page = pages[name];
         if (page) {
-            alterPage(page, alts);
+            (0, alterPage_1.alterPage)(page, alts);
             //console.info(`page ${name} altered`);
         }
         else {
@@ -383,14 +386,14 @@ function processFields(children, form, pageName) {
 }
 function writeJsons(jsonFolder, typ, comps) {
     const folder = jsonFolder + typ + '/';
-    mkdirSync(folder);
+    (0, fs_1.mkdirSync)(folder);
     for (const [name, comp] of Object.entries(comps)) {
         if (name !== comp.name) {
             console.error(`Error: Component with name='${comp.name}' is indexed with key='${name}. This is incorrect. Name should match the indexed-key to ensure that the name is unique across all records\n json NOT created for this record`);
             continue;
         }
         const fileName = folder + name + '.' + typ + '.json';
-        writeFileSync(fileName, JSON.stringify(comp));
+        (0, fs_1.writeFileSync)(fileName, JSON.stringify(comp));
         done(fileName);
     }
 }
@@ -428,7 +431,7 @@ function writeListSources(valueLists, tsFolder) {
         JSON.stringify(listSources) +
         ';\n';
     const fileName = tsFolder + 'listSources.ts';
-    writeFileSync(fileName, str);
+    (0, fs_1.writeFileSync)(fileName, str);
     done(fileName);
 }
 function done(_fileName) {
@@ -451,7 +454,7 @@ function checkNames(objects, fileName) {
 }
 function writeAll(comps, rootFolder, typ, allCompsName) {
     let folderName = rootFolder + allCompsName + '/';
-    mkdirSync(folderName, { recursive: true });
+    (0, fs_1.mkdirSync)(folderName, { recursive: true });
     /**
      * write individual files in the sub-folder
      */
@@ -459,7 +462,7 @@ function writeAll(comps, rootFolder, typ, allCompsName) {
     for (const [name, comp] of Object.entries(comps)) {
         compNames.push(name);
         const fileName = `${folderName}${name}.ts`;
-        writeFileSync(fileName, `import {  ${typ} } from 'simplity-types';
+        (0, fs_1.writeFileSync)(fileName, `import {  ${typ} } from 'simplity-types';
       export const ${name}: ${typ} = ${JSON.stringify(comp)};\n`);
         done(fileName);
     }

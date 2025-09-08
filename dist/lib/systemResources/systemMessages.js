@@ -1,4 +1,7 @@
-export const systemMessages = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.systemMessages = void 0;
+exports.systemMessages = {
     _internalError: "An error was encountered while processing the request. An alert has been raised for the support team to look into this. You may try again to see if the error was due to some transient situations",
     _notAuthorized: "This operation requires proper credentials",
     _concurrentUpdate: "This data was concurrently modified by some one else. Please review the revised data before modifying it again",

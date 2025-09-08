@@ -1,6 +1,9 @@
-import { generateCollectionFiles } from './generateCollectionFiles';
-import { processComponents } from './processComponents';
-export const devUtil = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.devUtil = void 0;
+const generateCollectionFiles_1 = require("./generateCollectionFiles");
+const processComponents_1 = require("./processComponents");
+exports.devUtil = {
     /**
      * process the design components to generate derived components for the server as well as the client
      * 1. JSOn files are created for the server side.
@@ -13,7 +16,7 @@ export const devUtil = {
      * @param tsFolder where typescript files are written out.
      * The folder is emptied before writing out generated ts files.
      */
-    processComponents,
+    processComponents: processComponents_1.processComponents,
     /**
      * Some components have very few attributes, and hence all instances of can be organized in a single file.
      * Like valueSchemas. However, components like page are better organized in individual files.
@@ -23,6 +26,6 @@ export const devUtil = {
      * @param importPrefix The prefix to use for imports. Like in "import {page1 } from 'prefix/pages/page1.page'". Defaults to '@/comps/'
      * @param outputFolder The folder to write the collection files. Defaults to './src/comps/generated/'
      */
-    generateCollectionFiles,
+    generateCollectionFiles: generateCollectionFiles_1.generateCollectionFiles,
 };
 //# sourceMappingURL=devUtil.js.map

@@ -1,4 +1,7 @@
-export function generateForms(records, forms) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateForms = generateForms;
+function generateForms(records, forms) {
     let nbrErrors = 0;
     for (const [name, record] of Object.entries(records.all)) {
         if (!record.isVisibleToClient) {
